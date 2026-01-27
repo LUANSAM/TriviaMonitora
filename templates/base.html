@@ -13,7 +13,7 @@
         <header class="app-header">
             <a class="header-link" href="{{ url_for('dashboard') if session.get('user') else url_for('home') }}">
                 <div class="header-brand">
-                    <h1>Controle de Rodagem</h1>
+                    <h1>Trivia Km</h1>
                 </div>
                 <div class="header-logo">
                     <img src="{{ url_for('serve_public_asset', filename='logo.png') }}" alt="Logo Trivia" loading="lazy">
