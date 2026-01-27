@@ -1,4 +1,4 @@
-# Controle de Rodagem
+# TriviaKm - Controle de Rodagem
 
 Aplicativo web em Flask que replica a ficha de checklist dos veículos e integra diretamente com Supabase para autenticação, banco de dados e armazenamento de imagens.
 
