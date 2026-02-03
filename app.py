@@ -52,6 +52,9 @@ REGISTER_AREAS = [
     {"id": "sinalizacao", "label": "Sinalização"},
     {"id": "telecom", "label": "Telecom"},
     {"id": "engenharia", "label": "Engenharia"},
+    {"id": "civil_vp", "label": "Civil/VP"},
+    {"id": "oficinas", "label": "Oficinas"},
+    {"id": "mro", "label": "MRO"},
 ]
 
 supabase: Client | None = None
@@ -223,6 +226,8 @@ def refresh_session_role() -> None:
             session["user"]["nome"] = data["nome"]
         if data.get("empresa") and data.get("empresa") != user.get("empresa"):
             session["user"]["empresa"] = data.get("empresa")
+        if data.get("area") and data.get("area") != user.get("area"):
+            session["user"]["area"] = data.get("area")
     except Exception:
         # Se não conseguir atualizar, mantém o valor atual em sessão.
         pass
@@ -317,6 +322,7 @@ def login():
             "email": user.email,
             "nome": profile_data.get("nome") or (user.email.split("@")[0] if user.email else "Usuário"),
             "empresa": profile_data.get("empresa"),
+            "area": profile_data.get("area"),
             "role": role,
         }
         flash("Bem-vindo!", "success")
@@ -383,6 +389,7 @@ def register():
             "email": email,
             "nome": nome,
             "empresa": empresa or None,
+            "area": area or None,
             "role": "user",
         }
         flash("Cadastro realizado! Bem-vindo.", "success")
@@ -509,9 +516,16 @@ def load_open_viagens(client: Client) -> list[dict]:
 def novo_relatorio():
     client = require_supabase()
     user = session.get("user")
+    # Filtrar veículos por empresa e area do usuário
+    query = client.table("veiculo").select("id, placa, modelo, marca, tipo, combustivel, circulando")
+    
+    if user.get("empresa"):
+        query = query.eq("empresa", user["empresa"])
+    if user.get("area"):
+        query = query.eq("area", user["area"])
+    
     vehicles = (
-        client.table("veiculo")
-        .select("id, placa, modelo, marca, tipo, combustivel, circulando")
+        query
         .order("modelo")
         .execute()
         .data
@@ -981,6 +995,7 @@ def upload_image(bucket: str, file_storage, prefix: str) -> str | None:
 @login_required("admin")
 def historico_relatorios():
     client = require_supabase()
+    user = session.get("user") or {}
     data = (
         client.table("relatorios")
         .select(
@@ -1007,7 +1022,7 @@ def historico_relatorios():
         try:
             vehicles_response = (
                 client.table("veiculo")
-                .select("id, placa, modelo, marca")
+                .select("id, placa, modelo, marca, empresa, area")
                 .in_("id", veiculo_ids)
                 .execute()
                 .data
@@ -1017,6 +1032,7 @@ def historico_relatorios():
         except Exception:
             vehicles_lookup = {}
 
+    filtered_data = []
     for item in data:
         partida_json = item.get("relatorio_partida") or {}
         entrega_json = item.get("relatorio_entrega") or {}
@@ -1025,9 +1041,17 @@ def historico_relatorios():
         item["cabecalho_partida"] = cab_partida
         item["cabecalho_entrega"] = cab_entrega
         item["status_label"] = "Em aberto" if item.get("viagem_aberta") else "Concluído"
-        item["veiculo"] = vehicles_lookup.get(item.get("veiculo_id"))
+        vehicle_ref = vehicles_lookup.get(item.get("veiculo_id"))
+        item["veiculo"] = vehicle_ref
 
-    return render_template("relatorios_list.html", relatorios=data)
+        if user.get("empresa") and (vehicle_ref or {}).get("empresa") != user["empresa"]:
+            continue
+        if user.get("area") and (vehicle_ref or {}).get("area") != user["area"]:
+            continue
+
+        filtered_data.append(item)
+
+    return render_template("relatorios_list.html", relatorios=filtered_data)
 
 
 @app.route("/admin/relatorios/<string:relatorio_id>")
@@ -1186,9 +1210,16 @@ def historico_avarias():
 @login_required("admin")
 def lista_usuarios():
     client = require_supabase()
+    user = session.get("user") or {}
+    query = client.table("usuarios").select("id, nome, email, empresa, area, autorizado, created_at")
+
+    if user.get("empresa"):
+        query = query.eq("empresa", user["empresa"])
+    if user.get("area"):
+        query = query.eq("area", user["area"])
+
     data = (
-        client.table("usuarios")
-        .select("id, nome, email, empresa, area, autorizado, created_at")
+        query
         .order("created_at", desc=True)
         .limit(200)
         .execute()
@@ -1277,9 +1308,22 @@ def gerenciar_veiculos():
             flash("Foto é obrigatória para cadastrar um veículo.", "error")
             return redirect(url_for("gerenciar_veiculos"))
         
+        # Obter empresa e area do usuário logado
+        user = session.get("user") or {}
+        empresa = user.get("empresa")
+        area = user.get("area")
+        
         inserted = (
             client.table("veiculo")
-            .insert({"placa": placa, "modelo": modelo, "marca": marca, "tipo": tipo, "combustivel": combustivel})
+            .insert({
+                "placa": placa,
+                "modelo": modelo,
+                "marca": marca,
+                "tipo": tipo,
+                "combustivel": combustivel,
+                "empresa": empresa,
+                "area": area
+            })
             .execute()
             .data
         )
@@ -1289,9 +1333,17 @@ def gerenciar_veiculos():
         flash("Veículo cadastrado!", "success")
         return redirect(url_for("gerenciar_veiculos"))
 
+    # Filtrar veículos por empresa e area do usuário
+    user = session.get("user") or {}
+    query = client.table("veiculo").select("id, placa, modelo, marca, tipo, combustivel, empresa, area, created_at")
+    
+    if user.get("empresa"):
+        query = query.eq("empresa", user["empresa"])
+    if user.get("area"):
+        query = query.eq("area", user["area"])
+    
     veiculos = (
-        client.table("veiculo")
-        .select("id, placa, modelo, marca, tipo, combustivel, created_at")
+        query
         .order("created_at", desc=True)
         .execute()
         .data
@@ -1403,12 +1455,17 @@ def editar_veiculo_ajax(veiculo_id: str):
         if not placa or not modelo:
             return {"error": "Placa e modelo são obrigatórios."}, 400
 
+        empresa = payload.get("empresa", "").strip()
+        area = payload.get("area", "").strip()
+        
         update_payload = {
             "placa": placa,
             "modelo": modelo,
             "marca": marca,
             "tipo": tipo,
             "combustivel": combustivel,
+            "empresa": empresa or None,
+            "area": area or None,
         }
 
         client.table("veiculo").update(update_payload).eq("id", veiculo_id).execute()
@@ -1478,9 +1535,18 @@ def delete_vehicle_photos(veiculo_id: str) -> None:
 @login_required()
 def registrar_avaria():
     client = require_supabase()
+    user = session.get("user")
+    
+    # Filtrar veículos por empresa e area do usuário
+    query = client.table("veiculo").select("id, placa, modelo")
+    
+    if user.get("empresa"):
+        query = query.eq("empresa", user["empresa"])
+    if user.get("area"):
+        query = query.eq("area", user["area"])
+    
     veiculos = (
-        client.table("veiculo")
-        .select("id, placa, modelo")
+        query
         .order("modelo")
         .execute()
         .data
@@ -1544,9 +1610,18 @@ def registrar_avaria():
 @login_required()
 def registrar_abastecimento():
     client = require_supabase()
+    user = session.get("user")
+    
+    # Filtrar veículos por empresa e area do usuário
+    query = client.table("veiculo").select("id, placa, modelo")
+    
+    if user.get("empresa"):
+        query = query.eq("empresa", user["empresa"])
+    if user.get("area"):
+        query = query.eq("area", user["area"])
+    
     veiculos = (
-        client.table("veiculo")
-        .select("id, placa, modelo")
+        query
         .order("modelo")
         .execute()
         .data

@@ -149,6 +149,8 @@
                         <th>Marca</th>
                         <th>Tipo</th>
                         <th>Combustível</th>
+                        <th>Empresa</th>
+                        <th>Área</th>
                         <th>KM rodado</th>
                         <th>Criado em</th>
                         <th class="actions-col">Ações</th>
@@ -177,6 +179,8 @@
                             <td>{{ veiculo.marca or '-' }}</td>
                             <td>{{ veiculo.tipo_label }}</td>
                             <td>{{ veiculo.combustivel_label }}</td>
+                            <td>{{ veiculo.empresa or '-' }}</td>
+                            <td>{{ veiculo.area or '-' }}</td>
                             <td>{{ (veiculo.km_rodado or 0)|int }} km</td>
                             <td>{{ formatted_date }}</td>
                             <td class="actions-cell">
@@ -190,6 +194,8 @@
                                     data-marca="{{ veiculo.marca }}"
                                     data-tipo="{{ veiculo.tipo }}"
                                     data-combustivel="{{ veiculo.combustivel }}"
+                                    data-empresa="{{ veiculo.empresa or '' }}"
+                                    data-area="{{ veiculo.area or '' }}"
                                 >✏️</button>
                                 <button
                                     type="button"
@@ -251,6 +257,14 @@
                         <option value="{{ combustivel.id }}">{{ combustivel.label }}</option>
                     {% endfor %}
                 </select>
+            </label>
+            <label>
+                <span>Empresa</span>
+                <input type="text" id="editVehicleEmpresa" placeholder="Empresa (opcional)" readonly style="background: #f0f0f0;">
+            </label>
+            <label>
+                <span>Área</span>
+                <input type="text" id="editVehicleArea" placeholder="Área (opcional)" readonly style="background: #f0f0f0;">
             </label>
 
             <div class="modal-actions">
@@ -443,6 +457,8 @@ document.querySelectorAll('.btn-vehicle-edit').forEach(btn => {
         document.getElementById('editVehicleId').value = btn.dataset.veiculoId;
         document.getElementById('editVehiclePlaca').value = btn.dataset.placa || '';
         document.getElementById('editVehicleCombustivel').value = btn.dataset.combustivel || '';
+        document.getElementById('editVehicleEmpresa').value = btn.dataset.empresa || '';
+        document.getElementById('editVehicleArea').value = btn.dataset.area || '';
         if (editBrandController) {
             editBrandController.populate(btn.dataset.marca || '', btn.dataset.modelo || '');
             const editMarcaSelect = document.getElementById('editVehicleMarca');
@@ -472,6 +488,8 @@ if (vehicleEditForm) {
             marca: document.getElementById('editVehicleMarca').value.trim(),
             tipo: document.getElementById('editVehicleTipoValue').value,
             combustivel: document.getElementById('editVehicleCombustivel').value,
+            empresa: document.getElementById('editVehicleEmpresa').value.trim(),
+            area: document.getElementById('editVehicleArea').value.trim(),
         };
 
         if (!payload.tipo) {
