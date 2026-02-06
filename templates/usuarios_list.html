@@ -77,6 +77,7 @@
                 <input type="text" id="editNome" name="nome" required>
             </label>
             
+            {% if current_user and current_user.email == 'luan.sampaio@triviatrens.com.br' %}
             <label>
                 <span>Empresa</span>
                 <select id="editEmpresa" name="empresa" required>
@@ -102,7 +103,6 @@
                 </select>
             </label>
 
-            {% if current_user and current_user.email == 'luan.sampaio@triviatrens.com.br' %}
             <label>
                 <span>Perfil</span>
                 <select id="editRole" name="role">
@@ -303,8 +303,14 @@ document.querySelectorAll('.btn-edit').forEach(btn => {
         
         document.getElementById('editUserId').value = userId;
         document.getElementById('editNome').value = nome;
-        document.getElementById('editEmpresa').value = empresa;
-        document.getElementById('editArea').value = area;
+        const empresaField = document.getElementById('editEmpresa');
+        if (empresaField) {
+            empresaField.value = empresa;
+        }
+        const areaField = document.getElementById('editArea');
+        if (areaField) {
+            areaField.value = area;
+        }
         const roleField = document.getElementById('editRole');
         if (roleField) {
             roleField.value = role || 'user';
@@ -320,13 +326,19 @@ document.getElementById('editForm').addEventListener('submit', async (e) => {
     
     const userId = document.getElementById('editUserId').value;
     const nome = document.getElementById('editNome').value;
-    const empresa = document.getElementById('editEmpresa').value;
-    const area = document.getElementById('editArea').value;
+    const empresaField = document.getElementById('editEmpresa');
+    const areaField = document.getElementById('editArea');
     const roleField = document.getElementById('editRole');
     const role = roleField ? roleField.value : null;
     
     try {
-        const payload = { nome, empresa, area };
+        const payload = { nome };
+        if (empresaField) {
+            payload.empresa = empresaField.value;
+        }
+        if (areaField) {
+            payload.area = areaField.value;
+        }
         if (roleField && role) {
             payload.role = role;
         }
