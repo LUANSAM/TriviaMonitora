@@ -50,8 +50,7 @@ REGISTER_COMPANIES = [
 REGISTER_AREAS = [
     {"id": "restabelecimento", "label": "Restabelecimento"},
     {"id": "energia", "label": "Energia"},
-    {"id": "sinalizacao", "label": "Sinalização"},
-    {"id": "telecom", "label": "Telecom"},
+    {"id": "telecom_sinalizacao", "label": "Telecom/Sinalização"},
     {"id": "engenharia", "label": "Engenharia"},
     {"id": "civil_vp", "label": "Civil/VP"},
     {"id": "oficinas", "label": "Oficinas"},
