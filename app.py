@@ -309,9 +309,10 @@ def _coerce_mapping(value) -> dict:
 def fetch_generator_levels() -> list[dict]:
     print("[DEBUG] Iniciando carga de níveis de combustível", flush=True)
     
-    # Se não houver arquivo .env ou se o flag de mock estiver ativo, usa dados mockados
-    if not os.path.exists(DOTENV_PATH) or SUPABASE_FORCE_MOCK:
-        print("[INFO] Ambiente sem .env ou SUPABASE_FORCE_MOCK=1, usando dados mockados", flush=True)
+    # Usar dados mockados se a flag estiver ativada ou se as credenciais do Supabase
+    # não estiverem presentes nas variáveis de ambiente (útil para deploys em cloud).
+    if SUPABASE_FORCE_MOCK or not (SUPABASE_URL and SUPABASE_ANON_KEY):
+        print("[INFO] SUPABASE_FORCE_MOCK=1 ou credenciais Supabase faltando, usando dados mockados", flush=True)
         return _get_mock_fuel_data()
     
     try:
