@@ -1300,7 +1300,7 @@ table td:nth-child(7) {
     /* Cards maintain 390px width, wrapping to new line when space runs out. On very small screens, cards shrink to fit. */
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 390px), 390px));
     gap: 1.5rem;
-    justify-content: start; /* align cards to the left, filling horizontal space */
+    justify-content: start; /* align cards to left, filling available width */
     max-width: 100%;
 }
 
