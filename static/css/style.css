@@ -253,7 +253,7 @@ body.sidenav-open {
 
 .app-main {
     padding: 32px;
-    max-width: 1280px;
+    max-width: 100%;
     margin: 0 auto;
 }
 
@@ -1297,10 +1297,10 @@ table td:nth-child(7) {
 
 .fuel-grid {
     display: grid;
-    /* Cards maintain 390px width, wrapping to new line when space runs out. On very small screens, cards shrink to fit. */
+    /* Cards stay at 390px; if space is tight they wrap, only shrinking on very small screens. */
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 390px), 390px));
-    gap: 1.5rem;
-    justify-content: start; /* align cards to left, filling available width */
+    gap: 1rem;
+    justify-content: center;
     max-width: 100%;
 }
 
