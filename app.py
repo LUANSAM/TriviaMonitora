@@ -418,72 +418,83 @@ def fetch_generator_levels() -> list[dict]:
 
 
 def _get_mock_fuel_data() -> list[dict]:
-    """Retorna dados mockados para teste quando Supabase não está disponível"""
-    return [
-        {
-            "id": 1,
-            "nome": "Gerador Principal - Sede (MOCK)",
-            "nivel_percent": 85.5,
-            "nivel_display": "86%",
-            "nivel_status": "safe",
-            "level_color": LEVEL_STATUS_COLORS["safe"],
-            "is_critical_focus": False,
-            "autonomia_value": 34.2,
-            "autonomia_display": "34.2 h",
-            "volume_tanque": "500L",
-            "local": "Estação Central - Sala Técnica",
-            "ultima_atualizacao_display": "15/02/2026 19:50",
-            "ultima_atualizacao_iso": "2026-02-15T19:50:00",
-            "ultima_atualizacao_dt": None
-        },
-        {
-            "id": 2,
-            "nome": "Gerador Backup - Norte (MOCK)",
-            "nivel_percent": 45.2,
-            "nivel_display": "45%",
-            "nivel_status": "moderate",
-            "level_color": LEVEL_STATUS_COLORS["moderate"],
-            "is_critical_focus": False,
-            "autonomia_value": 18.1,
-            "autonomia_display": "18.1 h",
-            "volume_tanque": "300L",
-            "local": "Terminal Norte",
-            "ultima_atualizacao_display": "15/02/2026 19:45",
-            "ultima_atualizacao_iso": "2026-02-15T19:45:00",
-            "ultima_atualizacao_dt": None
-        },
-        {
-            "id": 3,
-            "nome": "Gerador Emergência - Sul (MOCK)",
-            "nivel_percent": 22.8,
-            "nivel_display": "23%",
-            "nivel_status": "alert",
-            "level_color": LEVEL_STATUS_COLORS["alert"],
-            "is_critical_focus": True,
-            "autonomia_value": 9.1,
-            "autonomia_display": "9.1 h",
-            "volume_tanque": "400L",
-            "local": "Terminal Sul - Subsolo",
-            "ultima_atualizacao_display": "15/02/2026 19:40",
-            "ultima_atualizacao_iso": "2026-02-15T19:40:00",
-            "ultima_atualizacao_dt": None
-        },
-        {
-            "id": 4,
-            "nome": "Gerador Crítico - Leste (MOCK)",
-            "nivel_percent": 8.5,
-            "nivel_display": "9%",
-            "nivel_status": "critical",
-            "level_color": LEVEL_STATUS_COLORS["critical"],
-            "is_critical_focus": True,
-            "autonomia_value": 3.4,
-            "autonomia_display": "3.4 h",
-            "volume_tanque": "250L",
-            "local": "Estação Leste",
-            "ultima_atualizacao_display": "15/02/2026 19:35",
-            "ultima_atualizacao_iso": "2026-02-15T19:35:00",
-            "ultima_atualizacao_dt": None
+    """Retorna dados mockados para teste quando Supabase não está disponível."""
+    now_brt = datetime.now(timezone.utc).astimezone(BRT_TZ)
+    now_brt_display = now_brt.strftime("%d/%m/%Y - %H:%M")
+
+    def mock_entry(**kwargs):
+        base = {
+            "status_online": False,
+            "status_label": "offline",
+            "ultima_diff_minutes": None,
+            "ultima_diff_display": "—",
+            "brasilia_now_display": now_brt_display,
+            "ultima_atualizacao_dt": None,
         }
+        base.update(kwargs)
+        return base
+
+    return [
+        mock_entry(
+            id=1,
+            nome="Gerador Principal - Sede (MOCK)",
+            nivel_percent=85.5,
+            nivel_display="86%",
+            nivel_status="safe",
+            level_color=LEVEL_STATUS_COLORS["safe"],
+            is_critical_focus=False,
+            autonomia_value=34.2,
+            autonomia_display="34.2 h",
+            volume_tanque="500L",
+            local="Estação Central - Sala Técnica",
+            ultima_atualizacao_display="15/02/2026 19:50",
+            ultima_atualizacao_iso="2026-02-15T19:50:00",
+        ),
+        mock_entry(
+            id=2,
+            nome="Gerador Backup - Norte (MOCK)",
+            nivel_percent=45.2,
+            nivel_display="45%",
+            nivel_status="moderate",
+            level_color=LEVEL_STATUS_COLORS["moderate"],
+            is_critical_focus=False,
+            autonomia_value=18.1,
+            autonomia_display="18.1 h",
+            volume_tanque="300L",
+            local="Terminal Norte",
+            ultima_atualizacao_display="15/02/2026 19:45",
+            ultima_atualizacao_iso="2026-02-15T19:45:00",
+        ),
+        mock_entry(
+            id=3,
+            nome="Gerador Emergência - Sul (MOCK)",
+            nivel_percent=22.8,
+            nivel_display="23%",
+            nivel_status="alert",
+            level_color=LEVEL_STATUS_COLORS["alert"],
+            is_critical_focus=True,
+            autonomia_value=9.1,
+            autonomia_display="9.1 h",
+            volume_tanque="400L",
+            local="Terminal Sul - Subsolo",
+            ultima_atualizacao_display="15/02/2026 19:40",
+            ultima_atualizacao_iso="2026-02-15T19:40:00",
+        ),
+        mock_entry(
+            id=4,
+            nome="Gerador Crítico - Leste (MOCK)",
+            nivel_percent=8.5,
+            nivel_display="9%",
+            nivel_status="critical",
+            level_color=LEVEL_STATUS_COLORS["critical"],
+            is_critical_focus=True,
+            autonomia_value=3.4,
+            autonomia_display="3.4 h",
+            volume_tanque="250L",
+            local="Estação Leste",
+            ultima_atualizacao_display="15/02/2026 19:35",
+            ultima_atualizacao_iso="2026-02-15T19:35:00",
+        ),
     ]
 
 
