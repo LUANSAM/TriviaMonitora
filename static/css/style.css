@@ -1297,13 +1297,16 @@ table td:nth-child(7) {
 
 .fuel-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    /* try to fit as many 390px cards as possible, but allow them to shrink down to 260px on small screens */
+    grid-template-columns: repeat(auto-fit, minmax(260px, 390px));
     gap: 1.5rem;
+    justify-content: center; /* keep the grid centered */
     max-width: 100%;
 }
 
 .fuel-grid > * {
-    max-width: 400px;
+    width: 390px; /* fixed card width */
+    max-width: 100%;
 }
 
 .fuel-card {
@@ -1415,12 +1418,14 @@ table td:nth-child(7) {
 
 .fuel-card__updated-badge {
     position: absolute;
-    bottom: 8px;
+    top: 10px;
     right: 12px;
-    font-size: 0.75rem;
+    bottom: auto;
+    font-size: 0.68rem;
     font-weight: 700;
     padding: 2px 6px;
     pointer-events: none;
+    z-index: 3;
 }
 
 .updated--white {
