@@ -1,4 +1,5 @@
 import json
+import math
 import os
 import secrets
 import uuid
@@ -372,6 +373,12 @@ def fetch_generator_levels() -> list[dict]:
         if autonomia_base is not None and level_ratio is not None:
             autonomia_total = round(level_ratio * autonomia_base, 1)
 
+        # Calculate fuel capacity in liters
+        tanque_capacidade = _safe_float(data.get("tanque"))
+        litros_disponiveis = None
+        if tanque_capacidade is not None and level_ratio is not None:
+            litros_disponiveis = tanque_capacidade - math.ceil(level_ratio * tanque_capacidade)
+
         ultima_dt = _parse_datetime(row.get("ultimaAtualizacao"))
         is_online = False
         status_label = "offline"
@@ -417,6 +424,7 @@ def fetch_generator_levels() -> list[dict]:
                 "autonomia_value": autonomia_total,
                 "autonomia_display": f"{autonomia_total:.1f} h" if autonomia_total is not None else None,
                 "volume_tanque": data.get("tanque"),
+                "litros_disponiveis": litros_disponiveis,
                 "local": location_value or "Local não informado",
                 "dados": data,
                 "maps_url": maps_url,
@@ -465,6 +473,7 @@ def _get_mock_fuel_data() -> list[dict]:
             autonomia_value=34.2,
             autonomia_display="34.2 h",
             volume_tanque="500L",
+            litros_disponiveis=428,
             local="Estação Central - Sala Técnica",
             ultima_atualizacao_display="15/02/2026 19:50",
             ultima_atualizacao_iso="2026-02-15T19:50:00",
@@ -480,6 +489,7 @@ def _get_mock_fuel_data() -> list[dict]:
             autonomia_value=18.1,
             autonomia_display="18.1 h",
             volume_tanque="300L",
+            litros_disponiveis=136,
             local="Terminal Norte",
             ultima_atualizacao_display="15/02/2026 19:45",
             ultima_atualizacao_iso="2026-02-15T19:45:00",
@@ -495,6 +505,7 @@ def _get_mock_fuel_data() -> list[dict]:
             autonomia_value=9.1,
             autonomia_display="9.1 h",
             volume_tanque="400L",
+            litros_disponiveis=92,
             local="Terminal Sul - Subsolo",
             ultima_atualizacao_display="15/02/2026 19:40",
             ultima_atualizacao_iso="2026-02-15T19:40:00",
@@ -510,6 +521,7 @@ def _get_mock_fuel_data() -> list[dict]:
             autonomia_value=3.4,
             autonomia_display="3.4 h",
             volume_tanque="250L",
+            litros_disponiveis=22,
             local="Estação Leste",
             ultima_atualizacao_display="15/02/2026 19:35",
             ultima_atualizacao_iso="2026-02-15T19:35:00",
@@ -737,6 +749,7 @@ def api_fuel_levels():
                 "level_color": item.get("level_color"),
                 "is_critical_focus": item.get("is_critical_focus"),
                 "autonomia_display": item.get("autonomia_display"),
+                "litros_disponiveis": item.get("litros_disponiveis"),
                 "ultima_atualizacao_display": item.get("ultima_atualizacao_display"),
                 "ultima_atualizacao_iso": item.get("ultima_atualizacao_iso"),
                 "status_online": item.get("status_online"),

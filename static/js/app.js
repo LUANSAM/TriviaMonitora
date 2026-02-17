@@ -382,6 +382,7 @@ function setupFuelLevelsAutoRefresh() {
                     <div class="fuel-card__body-meta">
                         <h3>${escapeHtml(local)}</h3>
                         <p class="fuel-card__stat">Autonomia ≈ ${escapeHtml(autonomia)}</p>
+                        ${item.litros_disponiveis !== null && item.litros_disponiveis !== undefined ? `<p class="fuel-card__capacity">Cabem ${item.litros_disponiveis} litros</p>` : ''}
                         ${item.status_online ? '' : `<div class="fuel-card__status fuel-card__status--offline"><span class="fuel-card__status-dot"></span>offline</div>`}
                     </div>
                 </div>
