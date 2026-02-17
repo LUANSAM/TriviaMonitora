@@ -29,10 +29,8 @@ Aplicativo web em Flask que replica a ficha de checklist dos veículos e integra
 
 - `avarias` – fotos dos danos vinculados ao relatório.
 - `veiculos` – imagem de referência para cada veículo.
-- `abastecimentos` – fotos do hodômetro (km) e da nota fiscal.
 
 ## Observações
 
 - Perfis com `autorizado = true` na tabela `usuarios` têm o papel de administrador.
 - O formulário de checklist grava todos os campos no JSON (`relatorio`) e cria registros em `avaria` quando existirem danos.
-- Os abastecimentos salvam o ID como UUID manual para versionar as fotos no bucket.

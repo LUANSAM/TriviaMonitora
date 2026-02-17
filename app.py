@@ -973,13 +973,12 @@ def dashboard():
 
 def load_admin_stats() -> dict:
     client = require_supabase()
-    stats = {"usuarios": 0, "relatorios": 0, "avarias": 0, "veiculos": 0, "abastecimentos": 0}
+    stats = {"usuarios": 0, "relatorios": 0, "avarias": 0, "veiculos": 0}
     try:
         stats["usuarios"] = client.table("usuarios").select("id", count="exact").execute().count or 0
         stats["relatorios"] = client.table("relatorios").select("id", count="exact").execute().count or 0
         stats["avarias"] = client.table("avaria").select("id", count="exact").execute().count or 0
         stats["veiculos"] = client.table("veiculo").select("id", count="exact").execute().count or 0
-        stats["abastecimentos"] = client.table("abastecimentos").select("id", count="exact").execute().count or 0
     except Exception:
         pass
     return stats
@@ -1655,86 +1654,6 @@ def delete_vehicle_photos(veiculo_id: str) -> None:
         storage.remove(paths)
     except Exception:
         pass
-
-
-@app.route("/abastecimentos/historico")
-@login_required()
-def historico_abastecimentos():
-    client = require_supabase()
-    user = session.get("user") or {}
-    try:
-        data = (
-            client.table("abastecimentos")
-            .select("id, created_at, data, veiculoID, km, valor, litros, nota, userID")
-            .order("data", desc=True)
-            .limit(200)
-            .execute()
-            .data
-            or []
-        )
-    except Exception:
-        try:
-            data = (
-                client.table("abastecimentos")
-                .select("id, created_at, data, veiculo_id, km, valor, litros, nota, user_id")
-                .order("data", desc=True)
-                .limit(200)
-                .execute()
-                .data
-                or []
-            )
-            data = _normalize_row_keys(data)
-        except Exception:
-            data = []
-    veiculos_lookup = {}
-    usuarios_lookup = {}
-    try:
-        veiculo_query = client.table("veiculo").select("id, placa, area")
-        veiculo_query = apply_area_filter(veiculo_query, user)
-        veiculos_data = (
-            veiculo_query
-            .execute()
-            .data
-            or []
-        )
-        veiculos_lookup = {item["id"]: item for item in veiculos_data}
-        usuarios_data = (
-            client.table("usuarios")
-            .select("id, nome")
-            .execute()
-            .data
-            or []
-        )
-        usuarios_lookup = {item["id"]: item for item in usuarios_data}
-    except Exception:
-        pass
-
-    # Mantém apenas registros cujos veículos pertencem às áreas autorizadas
-    if veiculos_lookup:
-        allowed_ids = set(veiculos_lookup.keys())
-        data = [item for item in data if (item.get("veiculoID") in allowed_ids)]
-
-    for item in data:
-        try:
-            nota_json = json.loads(item.get("nota") or "{}")
-        except json.JSONDecodeError:
-            nota_json = {"texto": item.get("nota")}
-        item["nota_json"] = nota_json
-        veiculo_ref = veiculos_lookup.get(item.get("veiculoID"))
-        item["veiculo_placa"] = (veiculo_ref or {}).get("placa")
-        usuario_ref = usuarios_lookup.get(item.get("userID"))
-        item["usuario_nome"] = (usuario_ref or {}).get("nome")
-        data_raw = item.get("data")
-        data_formatada = None
-        if data_raw:
-            iso_value = data_raw.rstrip("Z")
-            try:
-                parsed = datetime.fromisoformat(iso_value)
-                data_formatada = parsed.strftime("%d/%m/%Y - %H:%M")
-            except ValueError:
-                data_formatada = None
-        item["data_formatada"] = data_formatada or data_raw or "-"
-    return render_template("abastecimentos_history.html", abastecimentos=data)
 
 
 @app.errorhandler(404)

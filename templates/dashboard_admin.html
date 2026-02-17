@@ -58,18 +58,6 @@
         </div>
         <strong class="stat-value">{{ stats.veiculos }}</strong>
     </a>
-    <a class="stat-card" href="{{ url_for('historico_abastecimentos') }}" style="cursor: pointer; text-decoration: none; color: inherit;">
-        <div class="stat-header">
-            <span class="stat-label">Abastecimentos</span>
-                <svg class="stat-icon" viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M7 2h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/>
-                    <path d="M9 6h2"/>
-                    <path d="M15 7v6.5a2.5 2.5 0 1 0 5 0V9.5L17.5 7H15"/>
-                    <path d="M15 5h2.5L20 7.5"/>
-                </svg>
-        </div>
-        <strong class="stat-value">{{ stats.abastecimentos }}</strong>
-    </a>
 </section>
 
 <section class="card">
@@ -141,7 +129,6 @@
                         'stat-avarias': stats.avarias,
                         'stat-usuarios': stats.usuarios,
                         'stat-veiculos': stats.veiculos,
-                        'stat-abastecimentos': stats.abastecimentos,
                     };
                     
                     for (const [id, value] of Object.entries(statCards)) {
