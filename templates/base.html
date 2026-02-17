@@ -65,13 +65,14 @@
                 {% if session.get('user') %}
                 <nav class="app-nav" aria-label="Navegação principal">
                     <div class="nav-row">
-                        <a class="nav-link" href="{{ url_for('home') }}">
+                        <a class="nav-link{% if request.endpoint != 'home' %} nav-link--full-row{% endif %}" href="{{ url_for('home') }}">
                             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
                                 <polyline points="9 22 9 12 15 12 15 22"/>
                             </svg>
                             <span class="nav-text">Níveis</span>
                         </a>
+                        {% if request.endpoint == 'home' %}
                         <button class="nav-link nav-link--square nav-link--print no-print" type="button" id="print-fuel-btn" aria-label="Imprimir níveis de combustível">
                             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M6 9V2h12v7" />
@@ -79,6 +80,7 @@
                                 <path d="M6 14h12v8H6z" />
                             </svg>
                         </button>
+                        {% endif %}
                     </div>
                     <button class="nav-link" type="button" data-menu-action="soon">
                         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
