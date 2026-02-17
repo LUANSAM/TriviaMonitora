@@ -15,7 +15,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 </head>
-<body>
+<body data-auth="{% if session.get('user') %}1{% else %}0{% endif %}">
     <div class="app-shell">
         <header class="app-header">
             <button class="menu-toggle" type="button" data-sidenav-toggle aria-label="Abrir menu" aria-controls="appSidenav" aria-expanded="false">

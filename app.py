@@ -329,7 +329,7 @@ def fetch_generator_levels() -> list[dict]:
         print("[DEBUG] Consultando tabela equipamentos...", flush=True)
         response = (
             client.table("equipamentos")
-            .select("id, nome, tipo, exibeNivel, nivelAtual, ultimaAtualizacao, dados, estacao")
+            .select("id, nome, tipo, exibeNivel, nivelAtual, ultimaAtualizacao, dados, estacao, local")
             .eq("tipo", "Gerador")
             .eq("exibeNivel", True)
             .order("nome", desc=False)
@@ -396,15 +396,17 @@ def fetch_generator_levels() -> list[dict]:
             location_value = row.get("estacao")
         is_critical_focus = level_percent is not None and level_percent < 25
 
-        # Prepare address / maps URL using address fields inside `dados` (if present)
+        # Prepare address / maps URL using address fields inside `local` (if present)
+        local_data = _coerce_mapping(row.get("local"))
         endereco_parts = []
         try:
-            # `data` is the parsed JSONB from `dados`
-            for k in ("rua", "numero", "bairro", "cidade", "cep", "local"):
-                v = data.get(k) if isinstance(data, dict) else None
+            # `local_data` is the parsed JSONB from `local` column
+            for k in ("rua", "numero", "bairro", "cidade", "cep"):
+                v = local_data.get(k) if isinstance(local_data, dict) else None
                 if v:
                     endereco_parts.append(str(v).strip())
-        except Exception:
+        except Exception as e:
+            print(f"[WARN] Erro ao processar endereço para {row.get('id')}: {e}", flush=True)
             endereco_parts = []
 
         endereco_text = ", ".join(endereco_parts).strip() if endereco_parts else None
@@ -747,6 +749,7 @@ def api_fuel_levels():
                 "nivel_display": item.get("nivel_display"),
                 "nivel_status": item.get("nivel_status"),
                 "level_color": item.get("level_color"),
+                "maps_url": item.get("maps_url"),
                 "is_critical_focus": item.get("is_critical_focus"),
                 "autonomia_display": item.get("autonomia_display"),
                 "litros_disponiveis": item.get("litros_disponiveis"),
@@ -759,10 +762,16 @@ def api_fuel_levels():
                 "brasilia_now_display": item.get("brasilia_now_display"),
             }
         )
+    is_authenticated = session.get("user") is not None
 
     last_refresh = _format_datetime_display(latest_dt)
     brasilia_now = fuel_levels[0].get("brasilia_now_display") if fuel_levels else None
-    return jsonify({"items": payload, "last_refresh": last_refresh, "brasilia_now": brasilia_now})
+    return jsonify({
+        "items": payload,
+        "last_refresh": last_refresh,
+        "brasilia_now": brasilia_now,
+        "is_authenticated": is_authenticated,
+    })
 
 
 @app.route("/login", methods=["GET", "POST"])

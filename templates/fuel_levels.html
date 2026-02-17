@@ -23,11 +23,21 @@
                             {% if equipamento.litros_disponiveis is not none %}
                             <p class="fuel-card__capacity">Cabem {{ equipamento.litros_disponiveis }} litros</p>
                             {% endif %}
-                            {% if not equipamento.status_online %}
-                            <div class="fuel-card__status fuel-card__status--offline">
-                                <span class="fuel-card__status-dot"></span>offline
+                            <div class="fuel-card__status-row">
+                                {% if not equipamento.status_online %}
+                                <div class="fuel-card__status fuel-card__status--offline">
+                                    <span class="fuel-card__status-dot"></span>offline
+                                </div>
+                                {% endif %}
+                                {% if session.get('user') and equipamento.maps_url %}
+                                <a href="{{ equipamento.maps_url }}" target="_blank" rel="noopener noreferrer" class="fuel-card__gps" title="Abrir no mapa">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-map-pin">
+                                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                                        <circle cx="12" cy="10" r="3"></circle>
+                                    </svg>
+                                </a>
+                                {% endif %}
                             </div>
-                            {% endif %}
                             <!-- Updated delta badge is positioned absolutely in the card -->
                         </div>
                     </div>
@@ -39,14 +49,6 @@
                             Atualizado à —
                         {% endif %}
                     </div>
-                    {% if session.get('user') and equipamento.maps_url %}
-                    <a href="{{ equipamento.maps_url }}" target="_blank" rel="noopener noreferrer" class="fuel-card__gps" title="Abrir no mapa">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-map-pin">
-                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                            <circle cx="12" cy="10" r="3"></circle>
-                        </svg>
-                    </a>
-                    {% endif %}
                 </article>
             {% endfor %}
         </div>

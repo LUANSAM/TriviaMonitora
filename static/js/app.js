@@ -349,7 +349,7 @@ function setupFuelLevelsAutoRefresh() {
             .replace(/'/g, '&#39;');
     };
 
-    const renderCards = (items, brasiliaNowFromApi) => {
+    const renderCards = (items, brasiliaNowFromApi, authenticated) => {
         const fragment = document.createDocumentFragment();
         items.forEach((item) => {
             const card = document.createElement('article');
@@ -357,7 +357,6 @@ function setupFuelLevelsAutoRefresh() {
             card.className = `fuel-card fuel-card--${escapeHtml(item.nivel_status || 'unknown')}${criticalClass}`;
 
             const onlineClass = item.status_online ? 'online' : 'offline';
-            const statusLabel = item.status_online ? 'online' : 'offline';
             const nivelPercent = item.nivel_percent ?? 0;
             const nivelDisplay = item.nivel_display || '—';
             const autonomia = item.autonomia_display || '—';
@@ -366,6 +365,8 @@ function setupFuelLevelsAutoRefresh() {
             const diff = item.ultima_diff_display || '—';
             const local = item.local || item.nome || 'Gerador';
             const fuelColor = item.level_color || '#1ec592';
+            const mapsUrl = item.maps_url;
+            const isAuthenticated = Boolean(authenticated);
 
             const minutesInt = (item.ultima_diff_minutes !== null && item.ultima_diff_minutes !== undefined) ? Math.round(item.ultima_diff_minutes) : null;
             const updatedClass = (nivelPercent > 25) ? 'updated--white' : 'updated--black';
@@ -383,7 +384,10 @@ function setupFuelLevelsAutoRefresh() {
                         <h3>${escapeHtml(local)}</h3>
                         <p class="fuel-card__stat">Autonomia ≈ ${escapeHtml(autonomia)}</p>
                         ${item.litros_disponiveis !== null && item.litros_disponiveis !== undefined ? `<p class="fuel-card__capacity">Cabem ${item.litros_disponiveis} litros</p>` : ''}
-                        ${item.status_online ? '' : `<div class="fuel-card__status fuel-card__status--offline"><span class="fuel-card__status-dot"></span>offline</div>`}
+                        <div class="fuel-card__status-row">
+                            ${item.status_online ? '' : `<div class="fuel-card__status fuel-card__status--offline"><span class="fuel-card__status-dot"></span>offline</div>`}
+                            ${isAuthenticated && mapsUrl ? `<a href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener noreferrer" class="fuel-card__gps" title="Abrir no mapa"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-map-pin"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg></a>` : ''}
+                        </div>
                     </div>
                 </div>
                 <div class="fuel-card__updated-badge ${updatedClass}">${minutesInt !== null ? `Atualizado à ${minutesInt} minutos` : 'Atualizado à —'}</div>
@@ -395,13 +399,16 @@ function setupFuelLevelsAutoRefresh() {
         grid.replaceChildren(fragment);
     };
 
+    const authFromDom = document.body?.dataset?.auth === '1';
+
     const fetchAndRender = async () => {
         try {
-            const response = await fetch('/api/fuel-levels', { cache: 'no-store' });
+            const response = await fetch('/api/fuel-levels', { cache: 'no-store', credentials: 'same-origin' });
             if (!response.ok) return;
             const data = await response.json();
             if (data && Array.isArray(data.items)) {
-                renderCards(data.items, data.brasilia_now);
+                const isAuthenticated = data.is_authenticated ?? authFromDom;
+                renderCards(data.items, data.brasilia_now, isAuthenticated);
             }
         } catch (err) {
             console.warn('Falha ao atualizar níveis de combustível', err);
