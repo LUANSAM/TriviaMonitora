@@ -376,7 +376,11 @@ def fetch_generator_levels() -> list[dict]:
         # Calculate fuel capacity in liters
         tanque_capacidade = _safe_float(data.get("tanque"))
         litros_disponiveis = None
+        volume_atual = None
+        volume_para_completar = None
         if tanque_capacidade is not None and level_ratio is not None:
+            volume_atual = round(level_ratio * tanque_capacidade, 1)
+            volume_para_completar = max(0.0, round(tanque_capacidade - (level_ratio * tanque_capacidade), 1))
             litros_disponiveis = tanque_capacidade - math.ceil(level_ratio * tanque_capacidade)
 
         ultima_dt = _parse_datetime(row.get("ultimaAtualizacao"))
@@ -425,7 +429,9 @@ def fetch_generator_levels() -> list[dict]:
                 "is_critical_focus": is_critical_focus,
                 "autonomia_value": autonomia_total,
                 "autonomia_display": f"{autonomia_total:.1f} h" if autonomia_total is not None else None,
-                "volume_tanque": data.get("tanque"),
+                "volume_tanque": tanque_capacidade,
+                "volume_atual": volume_atual,
+                "volume_para_completar": volume_para_completar,
                 "litros_disponiveis": litros_disponiveis,
                 "local": location_value or "Local não informado",
                 "dados": data,
@@ -463,7 +469,7 @@ def _get_mock_fuel_data() -> list[dict]:
         base.update(kwargs)
         return base
 
-    return [
+    items = [
         mock_entry(
             id=1,
             nome="Gerador Principal - Sede (MOCK)",
@@ -529,6 +535,23 @@ def _get_mock_fuel_data() -> list[dict]:
             ultima_atualizacao_iso="2026-02-15T19:35:00",
         ),
     ]
+
+    for item in items:
+        capacidade = _safe_float(item.get("volume_tanque"))
+        nivel_percent = _safe_float(item.get("nivel_percent"))
+        nivel_ratio = (nivel_percent / 100.0) if nivel_percent is not None else None
+        volume_atual = None
+        volume_para_completar = None
+        if capacidade is not None and nivel_ratio is not None:
+            volume_atual = round(nivel_ratio * capacidade, 1)
+            volume_para_completar = max(0.0, round(capacidade - (nivel_ratio * capacidade), 1))
+            if item.get("litros_disponiveis") is None:
+                item["litros_disponiveis"] = math.ceil(volume_para_completar)
+        item["volume_tanque"] = capacidade
+        item["volume_atual"] = volume_atual
+        item["volume_para_completar"] = volume_para_completar
+
+    return items
 
 
 def _normalize_areas(raw) -> list[str]:
@@ -751,7 +774,11 @@ def api_fuel_levels():
                 "level_color": item.get("level_color"),
                 "maps_url": item.get("maps_url"),
                 "is_critical_focus": item.get("is_critical_focus"),
+                "autonomia_value": item.get("autonomia_value"),
                 "autonomia_display": item.get("autonomia_display"),
+                "volume_tanque": item.get("volume_tanque"),
+                "volume_atual": item.get("volume_atual"),
+                "volume_para_completar": item.get("volume_para_completar"),
                 "litros_disponiveis": item.get("litros_disponiveis"),
                 "ultima_atualizacao_display": item.get("ultima_atualizacao_display"),
                 "ultima_atualizacao_iso": item.get("ultima_atualizacao_iso"),

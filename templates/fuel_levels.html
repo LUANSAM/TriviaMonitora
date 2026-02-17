@@ -1,6 +1,49 @@
 {% extends 'base.html' %}
 {% block title %}Níveis de Combustível · Trivia Monitora{% endblock %}
 {% block content %}
+<style>
+    /* Layout inspirado no relatorio_detail para impressão */
+    .fuel-print-card {
+        display: none; /* escondido na tela, visível só na impressão */
+        margin-top: 18px;
+    }
+    .fuel-print-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+    .fuel-print-title { margin: 0; font-size: 1.1rem; color: #0f172a; }
+    .icon-button { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.45rem 0.75rem; border: 1px solid #d0d7de; background: #f7f9fb; color: #0f172a; border-radius: 6px; cursor: pointer; }
+    .icon-button:hover { background: #e8edf2; }
+    .fuel-print-table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .fuel-print-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    .fuel-print-table th, .fuel-print-table td { padding: 10px 8px; text-align: left; white-space: nowrap; font-size: 0.92rem; }
+    .fuel-print-table th {
+        background: #f8fafc;
+        color: #0f172a;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        border-bottom: 2px solid #1f2f5f;
+    }
+    .fuel-print-table td { color: #000; background: #fff; }
+    .fuel-print-table tbody td { border-bottom: 1px solid #e2e8f0; }
+    .fuel-print-table .col-local { width: 16%; }
+    .fuel-print-table .col-volume { width: 28%; text-align: right; }
+    .fuel-print-table .col-autonomia { width: 28%; text-align: center; }
+    .fuel-print-table .col-completar { width: 28%; text-align: right; }
+    .fuel-print-total { margin-top: 10px; font-weight: 700; color: #0c1b2a; }
+
+    @media (max-width: 640px) {
+        .fuel-print-table th, .fuel-print-table td { font-size: 0.85rem; }
+        .fuel-print-table .col-autonomia { white-space: normal; }
+    }
+    @media print {
+        body, .app-main, .fuel-print-card, .fuel-print-table, .fuel-print-table th, .fuel-print-table td { background: #fff !important; color: #000 !important; }
+        .no-print, .sidenav, .sidenav-overlay, .fuel-grid, .fuel-card, .fuel-card__updated-badge, header.site-header { display: none !important; }
+        .app-main { padding: 0 !important; margin: 0 !important; }
+        .fuel-print-card { display: block !important; }
+        .fuel-print-table-wrapper { overflow: visible; }
+        .fuel-print-table { table-layout: fixed; font-size: 13px; }
+        .fuel-print-table th, .fuel-print-table td { white-space: normal; padding: 8px 6px; }
+    }
+</style>
 <section class="fuel-overview fuel-overview--minimal">
 
 
@@ -58,5 +101,46 @@
             <p>Nenhum gerador com exibição habilitada foi encontrado.</p>
         </div>
     {% endif %}
+</section>
+
+{% set total_ns = namespace(total=0) %}
+<section class="card fuel-print-card">
+    <header class="section-header fuel-print-header">
+        <h2 class="fuel-print-title">Estado do parque</h2>
+    </header>
+    <div class="fuel-print-table-wrapper">
+        <table class="fuel-print-table" aria-label="Resumo de níveis de combustível" role="table">
+            <thead>
+                <tr>
+                    <th class="col-local">Local</th>
+                    <th class="col-volume">Volume [L]</th>
+                    <th class="col-autonomia">Autonomia estimada [h]</th>
+                    <th class="col-completar">Reposição necessária [L]</th>
+                </tr>
+            </thead>
+            <tbody data-fuel-table-body>
+                {% for equipamento in fuel_levels or [] %}
+                    {% set volume_atual = equipamento.volume_atual %}
+                    {% set volume_para_completar = equipamento.volume_para_completar %}
+                    {% set autonomia_horas = equipamento.autonomia_value %}
+                    {% if autonomia_horas is none and equipamento.autonomia_display %}
+                        {% set autonomia_horas = (equipamento.autonomia_display|string).split(' ')[0]|replace(',', '.')|float %}
+                    {% endif %}
+                    {% if volume_para_completar is not none %}
+                        {% set total_ns.total = total_ns.total + volume_para_completar %}
+                    {% endif %}
+                    <tr>
+                        <td class="col-local">{{ equipamento.local }}</td>
+                        <td class="col-volume">{% if volume_atual is not none %}{{ volume_atual|round(0, 'ceil')|int }}{% else %}—{% endif %}</td>
+                        <td class="col-autonomia">{% if autonomia_horas is not none %}{{ '%.1f' | format(autonomia_horas) }}{% else %}—{% endif %}</td>
+                        <td class="col-completar">{% if volume_para_completar is not none %}{{ volume_para_completar|round(0, 'ceil')|int }}{% else %}—{% endif %}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="fuel-print-total" data-fuel-total>
+        Total de reposição [L]: {% if fuel_levels %}{{ total_ns.total|round(0, 'ceil')|int }}{% else %}—{% endif %}
+    </div>
 </section>
 {% endblock %}

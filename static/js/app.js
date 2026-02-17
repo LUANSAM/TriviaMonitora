@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupFuelSlider();
     setupFormSubmission();
     setupFuelLevelsAutoRefresh();
+    setupFuelPrintButton();
 });
 
 function setupSidenav() {
@@ -338,6 +339,8 @@ function setupFormSubmission() {
 function setupFuelLevelsAutoRefresh() {
     const grid = document.querySelector('[data-fuel-grid]');
     if (!grid) return;
+    const tableBody = document.querySelector('[data-fuel-table-body]');
+    const totalEl = document.querySelector('[data-fuel-total]');
 
     const escapeHtml = (value) => {
         if (value === null || value === undefined) return '';
@@ -347,6 +350,32 @@ function setupFuelLevelsAutoRefresh() {
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;');
+    };
+
+    const formatWholeCeil = (value) => {
+        if (value === null || value === undefined) return '—';
+        const num = Number(value);
+        if (Number.isNaN(num)) return '—';
+        return `${Math.ceil(num)}`;
+    };
+
+    const formatHoursOneDecimal = (value) => {
+        if (value === null || value === undefined) return '—';
+        const num = Number(value);
+        if (Number.isNaN(num)) return '—';
+        return `${num.toFixed(1)}`;
+    };
+
+    const parseAutonomiaHours = (item) => {
+        const direct = Number(item?.autonomia_value);
+        if (!Number.isNaN(direct)) return direct;
+
+        const display = item?.autonomia_display;
+        if (display === null || display === undefined) return null;
+        const match = String(display).match(/[\d]+(?:[\.,][\d]+)?/);
+        if (!match) return null;
+        const parsed = Number(match[0].replace(',', '.'));
+        return Number.isNaN(parsed) ? null : parsed;
     };
 
     const renderCards = (items, brasiliaNowFromApi, authenticated) => {
@@ -399,6 +428,36 @@ function setupFuelLevelsAutoRefresh() {
         grid.replaceChildren(fragment);
     };
 
+    const renderPrintTable = (items) => {
+        if (!tableBody) return;
+        const fragment = document.createDocumentFragment();
+        let totalCompletar = 0;
+        items.forEach((item) => {
+            const volumeAtual = item.volume_atual;
+            const volumeCompletar = item.volume_para_completar;
+            const autonomia = parseAutonomiaHours(item);
+            const local = item.local || item.nome || 'Gerador';
+            if (typeof volumeCompletar === 'number' && !Number.isNaN(volumeCompletar)) {
+                totalCompletar += volumeCompletar;
+            }
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="col-local">${escapeHtml(local)}</td>
+                <td class="col-volume">${formatWholeCeil(volumeAtual)}</td>
+                <td class="col-autonomia">${formatHoursOneDecimal(autonomia)}</td>
+                <td class="col-completar">${formatWholeCeil(volumeCompletar)}</td>
+            `;
+            fragment.appendChild(tr);
+        });
+        tableBody.replaceChildren(fragment);
+        if (totalEl) {
+            const text = Number.isFinite(totalCompletar)
+                ? `Total de reposição [L]: ${formatWholeCeil(totalCompletar)}`
+                : 'Total de reposição [L]: —';
+            totalEl.textContent = text;
+        }
+    };
+
     const authFromDom = document.body?.dataset?.auth === '1';
 
     const fetchAndRender = async () => {
@@ -409,6 +468,7 @@ function setupFuelLevelsAutoRefresh() {
             if (data && Array.isArray(data.items)) {
                 const isAuthenticated = data.is_authenticated ?? authFromDom;
                 renderCards(data.items, data.brasilia_now, isAuthenticated);
+                renderPrintTable(data.items);
             }
         } catch (err) {
             console.warn('Falha ao atualizar níveis de combustível', err);
@@ -418,4 +478,12 @@ function setupFuelLevelsAutoRefresh() {
     // Primeiro carregamento imediato e depois a cada 5s
     fetchAndRender();
     setInterval(fetchAndRender, 5000);
+}
+
+function setupFuelPrintButton() {
+    const btn = document.getElementById('print-fuel-btn');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+        window.print();
+    });
 }

@@ -247,6 +247,12 @@ body.sidenav-open {
     margin-top: 12px;
 }
 
+.app-nav .nav-row {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+}
+
 .app-nav .nav-link {
     display: flex;
     align-items: center;
@@ -260,6 +266,28 @@ body.sidenav-open {
     font-weight: 600;
     transition: all 0.2s ease;
     cursor: pointer;
+}
+
+.app-nav .nav-link--square {
+    width: 48px;
+    min-width: 48px;
+    padding: 12px;
+    justify-content: center;
+    gap: 0;
+}
+
+.app-nav .nav-link--print {
+    background: #16a34a;
+    border-color: #16a34a;
+}
+
+.app-nav .nav-link--print:hover {
+    background: #13803a;
+    border-color: #13803a;
+}
+
+.app-nav .nav-link--print .nav-icon {
+    color: #ffffff;
 }
 
 .app-nav .nav-link:hover {
