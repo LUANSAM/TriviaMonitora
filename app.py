@@ -92,12 +92,21 @@ LOCOMOTIVA_COMBUSTIVEIS = [
 
 LOCOMOTIVA_COMBUSTIVEL_LABELS = {item["label"] for item in LOCOMOTIVA_COMBUSTIVEIS}
 
+# Atualize esta lista para controlar as opções do dropdown de base no cadastro/edição de locomotivas.
+LOCOMOTIVA_BASES = [
+    {"id": "patio_calmon", "label": "Calmon Viana"},
+    {"id": "patio_lapa", "label": "Lapa"},
+    {"id": "patio_isp", "label": "Eng. São Paulo"},
+]
+
+LOCOMOTIVA_BASE_LABELS = {item["label"] for item in LOCOMOTIVA_BASES}
+
 
 LEVEL_STATUS_COLORS = {
     "safe": "#1ec592",
     "moderate": "#f6c343",
-    "alert": "#ff8a3c",
-    "critical": "#ff3355",
+    "alert": "#f36405",
+    "critical": "#ff0000",
     "unknown": "#95a1b3",
 }
 
@@ -322,7 +331,11 @@ def fetch_generator_levels() -> list[dict]:
                 "nivel_percent": level_percent,
                 "nivel_display": f"{level_percent:.0f}%" if level_percent is not None else "—",
                 "nivel_status": level_status,
-                "level_color": LEVEL_STATUS_COLORS.get(level_status, LEVEL_STATUS_COLORS["unknown"]),
+                "level_color": (
+                    LEVEL_STATUS_COLORS["critical"]
+                    if (level_percent is not None and level_percent < 25)
+                    else LEVEL_STATUS_COLORS.get(level_status, LEVEL_STATUS_COLORS["unknown"])
+                ),
                 "is_critical_focus": is_critical_focus,
                 "autonomia_value": autonomia_total,
                 "autonomia_display": f"{autonomia_total:.1f} h" if autonomia_total is not None else None,
@@ -551,10 +564,9 @@ def fetch_locomotivas_admin(
     client = get_supabase_service() or require_supabase()
     try:
         response = (
-            client.table("equipamentos")
-            .select("id, nome, tipo, nivelAtual, dados")
-            .eq("tipo", "Locomotiva")
-            .order("nome", desc=False)
+            client.table("locomotivas")
+            .select("id, tag, modelo, base, combustivel, volume_tanque, nivel_atual")
+            .order("tag", desc=False)
             .limit(500)
             .execute()
         )
@@ -566,15 +578,15 @@ def fetch_locomotivas_admin(
     query = (search_term or "").strip().lower()
     locomotivas: list[dict] = []
     for row in rows:
-        dados = _coerce_mapping(row.get("dados"))
-        tag_value = str(dados.get("tag") or row.get("nome") or "").strip()
-        modelo_value = str(dados.get("modelo") or "").strip()
-        combustivel_value = str(dados.get("combustivel") or "").strip()
-        tanque_value = _safe_float(dados.get("tanque"))
-        nivel_value = _normalize_level_percentage(_safe_float(row.get("nivelAtual")))
+        tag_value = str(row.get("tag") or "").strip()
+        modelo_value = str(row.get("modelo") or "").strip()
+        base_value = str(row.get("base") or "").strip()
+        combustivel_value = str(row.get("combustivel") or "").strip()
+        tanque_value = _safe_float(row.get("volume_tanque"))
+        nivel_value = _normalize_level_percentage(_safe_float(row.get("nivel_atual")))
 
         if query:
-            haystack = f"{tag_value} {modelo_value}".lower()
+            haystack = f"{tag_value} {modelo_value} {base_value}".lower()
             if query not in haystack:
                 continue
 
@@ -583,6 +595,7 @@ def fetch_locomotivas_admin(
                 "id": row.get("id"),
                 "tag": tag_value,
                 "modelo": modelo_value,
+                "base": base_value,
                 "combustivel": combustivel_value,
                 "volume_tanque": tanque_value,
                 "nivel_atual": nivel_value,
@@ -591,7 +604,7 @@ def fetch_locomotivas_admin(
             }
         )
 
-    allowed_sort = {"modelo", "tag", "combustivel", "nivel"}
+    allowed_sort = {"modelo", "tag", "base", "combustivel", "nivel"}
     sort_field = sort_by if sort_by in allowed_sort else "modelo"
     direction = "desc" if sort_dir == "desc" else "asc"
     reverse_sort = direction == "desc"
@@ -624,6 +637,90 @@ def fetch_locomotivas_admin(
         "sort_by": sort_field,
         "sort_dir": direction,
     }
+
+
+def fetch_locomotivas_levels() -> list[dict]:
+    client = get_supabase_service() or require_supabase()
+    try:
+        response = (
+            client.table("locomotivas")
+            .select("id, tag, modelo, base, combustivel, volume_tanque, nivel_atual, exibe_nivel, updated_at, created_at")
+            .eq("exibe_nivel", True)
+            .order("tag", desc=False)
+            .limit(500)
+            .execute()
+        )
+        rows = response.data or []
+    except Exception as exc:
+        print(f"[WARN] Erro ao consultar locomotivas para painel: {exc}", flush=True)
+        return []
+
+    now_utc = datetime.now(timezone.utc)
+    now_brt = now_utc.astimezone(BRT_TZ)
+    now_brt_display = now_brt.strftime("%d/%m/%Y - %H:%M")
+    items: list[dict] = []
+    for row in rows:
+        nivel_percent = _normalize_level_percentage(_safe_float(row.get("nivel_atual")))
+        status = _classify_level_status(nivel_percent)
+        is_critical_focus = nivel_percent is not None and nivel_percent < 25
+        capacidade = _safe_float(row.get("volume_tanque"))
+        nivel_ratio = (nivel_percent / 100.0) if (nivel_percent is not None) else None
+        volume_atual = round(capacidade * nivel_ratio, 1) if (capacidade is not None and nivel_ratio is not None) else None
+        volume_para_completar = max(0.0, round(capacidade - (capacidade * nivel_ratio), 1)) if (capacidade is not None and nivel_ratio is not None) else None
+        litros_disponiveis = math.ceil(volume_para_completar) if volume_para_completar is not None else None
+        autonomia_total = None
+
+        updated_dt = _parse_datetime(row.get("updated_at")) or _parse_datetime(row.get("created_at"))
+        minutes = None
+        status_online = False
+        status_label = "offline"
+        ultima_diff_display = None
+        if updated_dt:
+            minutes = max(0.0, round((now_utc - updated_dt).total_seconds() / 60.0, 1))
+            if minutes <= 2:
+                status_online = True
+                status_label = "online"
+            ultima_diff_display = f"{minutes:.1f} min"
+
+        loco_id = str(row.get("id") or "")
+        base = str(row.get("base") or "").strip()
+        modelo = str(row.get("modelo") or "").strip()
+        tag = str(row.get("tag") or "").strip()
+
+        items.append(
+            {
+                "id": row.get("id"),
+                "nome": tag or modelo or "Locomotiva",
+                "tag": tag,
+                "local": base or "Base não informada",
+                "modelo": modelo,
+                "combustivel": str(row.get("combustivel") or "").strip() or "—",
+                "nivel_percent": nivel_percent,
+                "nivel_display": f"{nivel_percent:.0f}%" if nivel_percent is not None else "—",
+                "nivel_status": status,
+                "level_color": (
+                    LEVEL_STATUS_COLORS["critical"]
+                    if (nivel_percent is not None and nivel_percent < 25)
+                    else LEVEL_STATUS_COLORS.get(status, LEVEL_STATUS_COLORS["unknown"])
+                ),
+                "is_critical_focus": is_critical_focus,
+                "autonomia_value": autonomia_total,
+                "autonomia_display": f"{autonomia_total:.1f} h" if autonomia_total is not None else None,
+                "volume_atual": volume_atual,
+                "volume_para_completar": volume_para_completar,
+                "litros_disponiveis": litros_disponiveis,
+                "maps_url": None,
+                "ultima_diff_minutes": minutes,
+                "ultima_diff_display": ultima_diff_display,
+                "ultima_atualizacao_dt": updated_dt,
+                "status_online": status_online,
+                "status_label": status_label,
+                "brasilia_now_display": now_brt_display,
+                "foto_url": fetch_vehicle_photo(loco_id) if loco_id else None,
+            }
+        )
+
+    return items
 
 
 def upload_vehicle_photo(veiculo_id: str, photo_file) -> str | None:
@@ -807,7 +904,11 @@ def login_required(role: str | None = None):
 
 @app.context_processor
 def inject_user():
-    return {"current_user": session.get("user")}
+    return {
+        "current_user": session.get("user"),
+        "locomotiva_bases": LOCOMOTIVA_BASES,
+        "locomotiva_combustiveis": LOCOMOTIVA_COMBUSTIVEIS,
+    }
 
 
 @app.before_request
@@ -900,8 +1001,19 @@ def home():
 
 @app.route("/locomotivas")
 def locomotivas():
+    locomotivas_levels = fetch_locomotivas_levels()
+    latest_dt = None
+    for item in locomotivas_levels:
+        dt_value = item.get("ultima_atualizacao_dt")
+        if not dt_value:
+            continue
+        if latest_dt is None or dt_value > latest_dt:
+            latest_dt = dt_value
+
     return render_template(
         "locomotivas.html",
+        locomotivas_levels=locomotivas_levels,
+        last_refresh=_format_datetime_display(latest_dt),
         active_section="locomotivas",
     )
 
@@ -1041,6 +1153,56 @@ def api_fuel_levels():
         "brasilia_now": brasilia_now,
         "is_authenticated": is_authenticated,
     })
+
+
+@app.route("/api/locomotivas-levels")
+def api_locomotivas_levels():
+    locomotivas_levels = fetch_locomotivas_levels()
+    latest_dt = None
+    for item in locomotivas_levels:
+        dt_value = item.get("ultima_atualizacao_dt")
+        if not dt_value:
+            continue
+        if latest_dt is None or dt_value > latest_dt:
+            latest_dt = dt_value
+
+    payload = []
+    for item in locomotivas_levels:
+        payload.append(
+            {
+                "id": item.get("id"),
+                "nome": item.get("nome"),
+                "tag": item.get("tag"),
+                "modelo": item.get("modelo"),
+                "local": item.get("local"),
+                "nivel_percent": item.get("nivel_percent"),
+                "nivel_display": item.get("nivel_display"),
+                "nivel_status": item.get("nivel_status"),
+                "level_color": item.get("level_color"),
+                "maps_url": item.get("maps_url"),
+                "is_critical_focus": item.get("is_critical_focus"),
+                "litros_disponiveis": item.get("litros_disponiveis"),
+                "ultima_atualizacao_display": item.get("ultima_atualizacao_display"),
+                "ultima_atualizacao_iso": item.get("ultima_atualizacao_iso"),
+                "status_online": item.get("status_online"),
+                "status_label": item.get("status_label"),
+                "ultima_diff_minutes": item.get("ultima_diff_minutes"),
+                "ultima_diff_display": item.get("ultima_diff_display"),
+                "brasilia_now_display": item.get("brasilia_now_display"),
+            }
+        )
+
+    is_authenticated = session.get("user") is not None
+    last_refresh = _format_datetime_display(latest_dt)
+    brasilia_now = locomotivas_levels[0].get("brasilia_now_display") if locomotivas_levels else None
+    return jsonify(
+        {
+            "items": payload,
+            "last_refresh": last_refresh,
+            "brasilia_now": brasilia_now,
+            "is_authenticated": is_authenticated,
+        }
+    )
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -1297,6 +1459,7 @@ def admin_locomotivas():
         sort_by=result.get("sort_by", "modelo"),
         sort_dir=result.get("sort_dir", "asc"),
         combustiveis=LOCOMOTIVA_COMBUSTIVEIS,
+        bases=LOCOMOTIVA_BASES,
     )
 
 
@@ -1309,13 +1472,18 @@ def criar_locomotiva():
 
     tag = (request.form.get("tag") or "").strip()
     modelo = (request.form.get("modelo") or "").strip()
+    base = (request.form.get("base") or "").strip()
     combustivel = (request.form.get("combustivel") or "").strip()
-    tanque_raw = (request.form.get("volume_tanque") or "").replace(",", ".").strip()
-    nivel_raw = (request.form.get("nivel_atual") or "0").replace(",", ".").strip()
+    tanque_raw = (request.form.get("volume_tanque") or "").strip()
+    nivel_raw = (request.form.get("nivel_atual") or "0").strip()
     photo_file = request.files.get("foto")
 
-    if not tag or not modelo or not combustivel or not tanque_raw:
-        flash("Preencha foto, tag, modelo, combustível e volume do tanque.", "error")
+    if not tag or not modelo or not base or not combustivel or not tanque_raw:
+        flash("Preencha foto, tag, modelo, base, combustível e volume do tanque.", "error")
+        return redirect(url_for("admin_locomotivas"))
+
+    if base not in LOCOMOTIVA_BASE_LABELS:
+        flash("Base inválida. Se necessário, cadastre a opção na lista de bases do código.", "error")
         return redirect(url_for("admin_locomotivas"))
 
     if combustivel not in LOCOMOTIVA_COMBUSTIVEL_LABELS:
@@ -1326,40 +1494,46 @@ def criar_locomotiva():
         flash("A foto da locomotiva é obrigatória.", "error")
         return redirect(url_for("admin_locomotivas"))
 
-    try:
-        volume_tanque = float(tanque_raw)
-        nivel_atual = float(nivel_raw)
-    except ValueError:
-        flash("Volume do tanque e nível atual devem ser numéricos.", "error")
+    if not tanque_raw.isdigit():
+        flash("Volume do tanque deve ser um número inteiro maior que zero.", "error")
         return redirect(url_for("admin_locomotivas"))
+
+    volume_tanque = int(tanque_raw)
+
+    if not nivel_raw.isdigit():
+        flash("Nível atual deve ser um número inteiro entre 0 e 100.", "error")
+        return redirect(url_for("admin_locomotivas"))
+
+    nivel_atual = int(nivel_raw)
 
     if volume_tanque <= 0:
         flash("Volume do tanque deve ser maior que zero.", "error")
         return redirect(url_for("admin_locomotivas"))
 
-    nivel_atual = max(0.0, min(100.0, nivel_atual))
+    if nivel_atual < 0 or nivel_atual > 100:
+        flash("Nível atual deve estar entre 0 e 100.", "error")
+        return redirect(url_for("admin_locomotivas"))
 
     payload = {
-        "nome": tag,
-        "tipo": "Locomotiva",
-        "exibeNivel": True,
-        "nivelAtual": nivel_atual,
-        "dados": {
-            "tag": tag,
-            "modelo": modelo,
-            "combustivel": combustivel,
-            "tanque": volume_tanque,
-        },
+        "tag": tag,
+        "modelo": modelo,
+        "base": base,
+        "combustivel": combustivel,
+        "volume_tanque": volume_tanque,
+        "nivel_atual": nivel_atual,
+        "exibe_nivel": True,
     }
 
     client = get_supabase_service() or require_supabase()
     try:
-        inserted = client.table("equipamentos").insert(payload).execute().data or []
+        inserted = client.table("locomotivas").insert(payload).execute().data or []
         created = inserted[0] if inserted else None
         loco_id = str((created or {}).get("id") or "")
 
         if loco_id and photo_file and photo_file.filename:
-            upload_vehicle_photo(loco_id, photo_file)
+            foto_path = upload_vehicle_photo(loco_id, photo_file)
+            if foto_path:
+                client.table("locomotivas").update({"foto_path": foto_path}).eq("id", loco_id).execute()
 
         flash("Locomotiva cadastrada com sucesso.", "success")
     except Exception as exc:
@@ -1377,62 +1551,60 @@ def editar_locomotiva(loco_id: str):
 
     tag = (request.form.get("tag") or "").strip()
     modelo = (request.form.get("modelo") or "").strip()
+    base = (request.form.get("base") or "").strip()
     combustivel = (request.form.get("combustivel") or "").strip()
-    tanque_raw = (request.form.get("volume_tanque") or "").replace(",", ".").strip()
-    nivel_raw = (request.form.get("nivel_atual") or "0").replace(",", ".").strip()
+    tanque_raw = (request.form.get("volume_tanque") or "").strip()
+    nivel_raw = (request.form.get("nivel_atual") or "0").strip()
 
-    if not tag or not modelo or not combustivel or not tanque_raw:
-        flash("Preencha tag, modelo, combustível e volume do tanque.", "error")
+    if not tag or not modelo or not base or not combustivel or not tanque_raw:
+        flash("Preencha tag, modelo, base, combustível e volume do tanque.", "error")
+        return redirect(url_for("admin_locomotivas"))
+
+    if base not in LOCOMOTIVA_BASE_LABELS:
+        flash("Base inválida. Se necessário, cadastre a opção na lista de bases do código.", "error")
         return redirect(url_for("admin_locomotivas"))
 
     if combustivel not in LOCOMOTIVA_COMBUSTIVEL_LABELS:
         flash("Combustível inválido. Use apenas Diesel S10 ou Diesel S500.", "error")
         return redirect(url_for("admin_locomotivas"))
 
-    try:
-        volume_tanque = float(tanque_raw)
-        nivel_atual = float(nivel_raw)
-    except ValueError:
-        flash("Volume do tanque e nível atual devem ser numéricos.", "error")
+    if not tanque_raw.isdigit():
+        flash("Volume do tanque deve ser um número inteiro maior que zero.", "error")
         return redirect(url_for("admin_locomotivas"))
+
+    volume_tanque = int(tanque_raw)
+
+    if not nivel_raw.isdigit():
+        flash("Nível atual deve ser um número inteiro entre 0 e 100.", "error")
+        return redirect(url_for("admin_locomotivas"))
+
+    nivel_atual = int(nivel_raw)
 
     if volume_tanque <= 0:
         flash("Volume do tanque deve ser maior que zero.", "error")
         return redirect(url_for("admin_locomotivas"))
 
-    nivel_atual = max(0.0, min(100.0, nivel_atual))
+    if nivel_atual < 0 or nivel_atual > 100:
+        flash("Nível atual deve estar entre 0 e 100.", "error")
+        return redirect(url_for("admin_locomotivas"))
 
     client = get_supabase_service() or require_supabase()
     try:
-        current = (
-            client.table("equipamentos")
-            .select("id, dados")
-            .eq("id", loco_id)
-            .eq("tipo", "Locomotiva")
-            .single()
-            .execute()
-            .data
-        ) or {}
-        dados = _coerce_mapping(current.get("dados"))
-        dados.update(
-            {
-                "tag": tag,
-                "modelo": modelo,
-                "combustivel": combustivel,
-                "tanque": volume_tanque,
-            }
-        )
-
         update_payload = {
-            "nome": tag,
-            "nivelAtual": nivel_atual,
-            "dados": dados,
+            "tag": tag,
+            "modelo": modelo,
+            "base": base,
+            "combustivel": combustivel,
+            "volume_tanque": volume_tanque,
+            "nivel_atual": nivel_atual,
         }
-        client.table("equipamentos").update(update_payload).eq("id", loco_id).eq("tipo", "Locomotiva").execute()
+        client.table("locomotivas").update(update_payload).eq("id", loco_id).execute()
 
         photo_file = request.files.get("foto")
         if photo_file and photo_file.filename:
-            upload_vehicle_photo(loco_id, photo_file)
+            foto_path = upload_vehicle_photo(loco_id, photo_file)
+            if foto_path:
+                client.table("locomotivas").update({"foto_path": foto_path}).eq("id", loco_id).execute()
 
         flash("Locomotiva atualizada com sucesso.", "success")
     except Exception as exc:
@@ -1450,7 +1622,7 @@ def deletar_locomotiva(loco_id: str):
 
     client = get_supabase_service() or require_supabase()
     try:
-        client.table("equipamentos").delete().eq("id", loco_id).eq("tipo", "Locomotiva").execute()
+        client.table("locomotivas").delete().eq("id", loco_id).execute()
         delete_vehicle_photos(loco_id)
         flash("Locomotiva excluída com sucesso.", "success")
     except Exception as exc:

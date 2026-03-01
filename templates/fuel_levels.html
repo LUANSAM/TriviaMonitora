@@ -1,7 +1,256 @@
 {% extends 'base.html' %}
-{% block title %}Níveis de Combustível · Trivia Monitora{% endblock %}
+{% block title %}Níveis de Combustível · Monitor{% endblock %}
 {% block content %}
 <style>
+    .fuel-overview--minimal {
+        --industrial-dark: #1a1d24;
+        --industrial-darker: #151820;
+        --industrial-slate: #262b35;
+        --industrial-metal: #404756;
+        --industrial-steel: #4a5568;
+        --industrial-blue: #3b82f6;
+        --industrial-blue-light: #60a5fa;
+        --industrial-orange: #f59e0b;
+        --industrial-red: #ff0000;
+        --industrial-green: #10b981;
+        --industrial-border: rgba(255, 255, 255, 0.08);
+        --industrial-text: #e2e8f0;
+        --industrial-text-dim: #94a3b8;
+        --footer-bottom-space: 0px;
+    }
+
+    .fuel-overview--minimal .fuel-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+        gap: 18px;
+        padding: 20px 0;
+        max-width: 1600px;
+        margin: 0 auto;
+    }
+
+    .fuel-overview--minimal .fuel-card {
+        background: linear-gradient(145deg, var(--industrial-slate), var(--industrial-dark));
+        border: 1px solid var(--industrial-border);
+        border-radius: 10px;
+        box-shadow:
+            0 4px 12px rgba(0, 0, 0, 0.4),
+            inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        min-height: 135px;
+        margin-left: 0;
+        margin-right: 0;
+    }
+
+    .fuel-overview--minimal .fuel-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, var(--industrial-blue), var(--industrial-blue-light));
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    .fuel-overview--minimal .fuel-card:hover {
+        transform: translateY(-2px);
+        box-shadow:
+            0 8px 24px rgba(0, 0, 0, 0.5),
+            inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
+
+    .fuel-overview--minimal .fuel-card:hover::before {
+        opacity: 1;
+    }
+
+    .fuel-overview--minimal .fuel-card--ok::before {
+        background: linear-gradient(90deg, var(--industrial-green), #34d399);
+    }
+
+    .fuel-overview--minimal .fuel-card--warning::before {
+        background: linear-gradient(90deg, var(--industrial-orange), #fbbf24);
+    }
+
+    .fuel-overview--minimal .fuel-card--critical::before,
+    .fuel-overview--minimal .fuel-card--low::before {
+        background: linear-gradient(90deg, var(--industrial-red), #ff0000);
+        opacity: 1;
+    }
+
+    .fuel-overview--minimal .fuel-card__body {
+        display: grid;
+        grid-template-columns: 168px minmax(0, 1fr);
+        gap: 16px;
+        padding: 8px 0 6px;
+        align-items: center;
+        min-height: 0;
+    }
+
+    .fuel-overview--minimal .fuel-card__gauge-wrapper {
+        flex-shrink: 0;
+        width: 160px;
+        height: 80px;
+        margin: 0;
+        background: transparent;
+        border-radius: 0;
+        padding: 0;
+        box-shadow: none;
+        overflow: visible;
+    }
+
+    .fuel-overview--minimal .semi-gauge {
+        filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));
+    }
+
+    .fuel-overview--minimal .semi-gauge__dial span {
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        font-weight: 700;
+        font-size: 1.4rem;
+        color: #ffffff;
+        letter-spacing: -0.02em;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .fuel-overview--minimal .fuel-card__body-meta {
+        flex: 1;
+        min-width: 0;
+        margin: 0;
+        padding: 0;
+    }
+
+    .fuel-overview--minimal .fuel-card__body-meta h3 {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--industrial-text);
+        margin: 0 0 8px 0;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        line-height: 1.2;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    }
+
+    .fuel-overview--minimal .fuel-card__stat,
+    .fuel-overview--minimal .fuel-card__capacity {
+        font-size: 0.88rem;
+        color: var(--industrial-text-dim);
+        margin: 4px 0;
+        font-weight: 500;
+        letter-spacing: 0.01em;
+    }
+
+    .fuel-overview--minimal .fuel-card__capacity {
+        color: var(--industrial-blue-light);
+        font-weight: 600;
+    }
+
+    .fuel-overview--minimal .fuel-card__status-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 8px;
+    }
+
+    .fuel-overview--minimal .fuel-card__status {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 8px;
+        background: rgba(239, 68, 68, 0.12);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--industrial-red);
+    }
+
+    .fuel-overview--minimal .fuel-card__status-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--industrial-red);
+        animation: pulse-offline 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-offline {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.4; }
+    }
+
+    .fuel-overview--minimal .fuel-card__gps {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        background: var(--industrial-metal);
+        border: 1px solid var(--industrial-border);
+        border-radius: 5px;
+        color: #ffffff;
+        transition: all 0.2s ease;
+    }
+
+    .fuel-overview--minimal .fuel-card__gps:hover {
+        background: var(--industrial-steel);
+        border-color: var(--industrial-blue);
+        color: #ffffff;
+        transform: scale(1.05);
+    }
+
+    .fuel-overview--minimal .fuel-card__gps svg {
+        color: #ffffff !important;
+        stroke: #ffffff !important;
+    }
+
+    .fuel-overview--minimal .fuel-card__updated-badge {
+        position: static;
+        align-self: flex-start;
+        margin: auto 0 var(--footer-bottom-space) 0;
+        padding: 0;
+        font-size: 0.56rem;
+        font-weight: 400;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        background: transparent;
+        border: none;
+        border-radius: 0;
+        color: #ffffff;
+        box-shadow: none;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+        max-width: 100%;
+        white-space: nowrap;
+        opacity: 0.95;
+    }
+
+    .fuel-overview--minimal .fuel-card__updated-badge.updated--white,
+    .fuel-overview--minimal .fuel-card__updated-badge.updated--black {
+        background: transparent;
+        color: #ffffff;
+    }
+
+    .fuel-overview--minimal .empty-state {
+        background: var(--industrial-slate);
+        border: 1px dashed var(--industrial-border);
+        border-radius: 10px;
+        padding: 40px 24px;
+        text-align: center;
+        color: var(--industrial-text-dim);
+    }
+
+    .fuel-overview--minimal .empty-state h3 {
+        color: var(--industrial-text);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 8px;
+    }
+
     .fuel-print-card {
         display: none; /* escondido na tela, visível só na impressão */
         margin-top: 18px;
@@ -30,6 +279,36 @@
     .fuel-print-total { margin-top: 10px; font-weight: 700; color: #0c1b2a; }
 
     @media (max-width: 640px) {
+        .fuel-overview--minimal .fuel-grid {
+            grid-template-columns: 1fr;
+            gap: 14px;
+            padding: 14px 0;
+        }
+
+        .fuel-overview--minimal .fuel-card__body {
+            gap: 12px;
+            grid-template-columns: 150px minmax(0, 1fr);
+            padding: 8px 0 6px;
+        }
+
+        .fuel-overview--minimal .fuel-card__gauge-wrapper {
+            width: 140px;
+            height: 70px;
+        }
+
+        .fuel-overview--minimal .semi-gauge__dial span {
+            font-size: 1.2rem;
+        }
+
+        .fuel-overview--minimal .fuel-card__body-meta h3 {
+            font-size: 0.95rem;
+        }
+
+        .fuel-overview--minimal .fuel-card__updated-badge {
+            font-size: 0.52rem;
+            max-width: 100%;
+        }
+
         .fuel-print-table th, .fuel-print-table td { font-size: 0.85rem; }
         .fuel-print-table .col-autonomia { white-space: normal; }
     }

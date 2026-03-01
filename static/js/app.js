@@ -339,6 +339,10 @@ function setupFormSubmission() {
 function setupFuelLevelsAutoRefresh() {
     const grid = document.querySelector('[data-fuel-grid]');
     if (!grid) return;
+    const activeSection = (document.body?.dataset?.section || '').toLowerCase();
+    const isGeradores = activeSection === 'geradores';
+    const isLocomotivas = activeSection === 'locomotivas';
+    if (!isGeradores && !isLocomotivas) return;
     const tableBody = document.querySelector('[data-fuel-table-body]');
     const totalEl = document.querySelector('[data-fuel-total]');
 
@@ -378,20 +382,16 @@ function setupFuelLevelsAutoRefresh() {
         return Number.isNaN(parsed) ? null : parsed;
     };
 
-    const renderCards = (items, brasiliaNowFromApi, authenticated) => {
+    const renderCardsGeradores = (items, authenticated) => {
         const fragment = document.createDocumentFragment();
         items.forEach((item) => {
             const card = document.createElement('article');
             const criticalClass = item.is_critical_focus ? ' fuel-card--low' : '';
             card.className = `fuel-card fuel-card--${escapeHtml(item.nivel_status || 'unknown')}${criticalClass}`;
 
-            const onlineClass = item.status_online ? 'online' : 'offline';
             const nivelPercent = item.nivel_percent ?? 0;
             const nivelDisplay = item.nivel_display || '—';
             const autonomia = item.autonomia_display || '—';
-            const updated = item.ultima_atualizacao_display || 'indisponível';
-            const brNow = item.brasilia_now_display || brasiliaNowFromApi || '—';
-            const diff = item.ultima_diff_display || '—';
             const local = item.local || item.nome || 'Gerador';
             const fuelColor = item.level_color || '#1ec592';
             const mapsUrl = item.maps_url;
@@ -420,6 +420,58 @@ function setupFuelLevelsAutoRefresh() {
                     </div>
                 </div>
                 <div class="fuel-card__updated-badge ${updatedClass}">${minutesInt !== null ? `Atualizado à ${minutesInt} minutos` : 'Atualizado à —'}</div>
+            `;
+
+            fragment.appendChild(card);
+        });
+
+        grid.replaceChildren(fragment);
+    };
+
+    const renderCardsLocomotivas = (items, authenticated) => {
+        const fragment = document.createDocumentFragment();
+        items.forEach((item) => {
+            const card = document.createElement('article');
+            const criticalClass = item.is_critical_focus ? ' fuel-card--low' : '';
+            card.className = `fuel-card fuel-card--${escapeHtml(item.nivel_status || 'unknown')}${criticalClass}`;
+
+            const nivelPercent = item.nivel_percent ?? 0;
+            const nivelDisplay = item.nivel_display || '—';
+            const local = item.local || item.nome || 'Locomotiva';
+            const fuelColor = item.level_color || '#1ec592';
+            const mapsUrl = item.maps_url;
+            const isAuthenticated = Boolean(authenticated);
+            const tag = item.tag || item.nome || 'Sem tag';
+            const modelo = item.modelo || 'Modelo não informado';
+            const minutesInt = (item.ultima_diff_minutes !== null && item.ultima_diff_minutes !== undefined) ? Math.round(item.ultima_diff_minutes) : null;
+            const updatedClass = (minutesInt !== null && minutesInt > 25) ? 'updated--white' : 'updated--black';
+
+            card.innerHTML = `
+                <div class="fuel-card__body fuel-card__body--compact">
+                    <div class="fuel-card__gauge-wrapper">
+                        <div class="semi-gauge" style="--fuel-level: ${nivelPercent}; --fuel-color: ${fuelColor};" role="img" aria-label="Nível ${escapeHtml(nivelDisplay)} de ${escapeHtml(item.nome || '')}">
+                            <div class="semi-gauge__dial">
+                                <span>${escapeHtml(nivelDisplay)}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="fuel-card__body-meta">
+                        <h3>${escapeHtml(local)}</h3>
+                        <div class="fuel-card__tag-row">
+                            <p class="fuel-card__tag">${escapeHtml(tag)}</p>
+                            <p class="fuel-card__model">${escapeHtml(modelo)}</p>
+                        </div>
+                        <div class="fuel-card__status-row">
+                            ${item.status_online ? '' : `<div class="fuel-card__status fuel-card__status--offline"><span class="fuel-card__status-dot"></span>offline</div>`}
+                            ${isAuthenticated && mapsUrl ? `<a href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener noreferrer" class="fuel-card__gps" title="Abrir no mapa"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-map-pin"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg></a>` : ''}
+                        </div>
+                    </div>
+                </div>
+                <div class="fuel-card__footer">
+                    ${item.litros_disponiveis !== null && item.litros_disponiveis !== undefined ? `<p class="fuel-card__capacity fuel-card__capacity--footer">Cabem ${item.litros_disponiveis} litros</p>` : ''}
+                    <div class="fuel-card__updated-badge ${updatedClass}">${minutesInt !== null ? `Atualizado à ${minutesInt} minutos` : 'Atualizado à —'}</div>
+                </div>
             `;
 
             fragment.appendChild(card);
@@ -462,13 +514,18 @@ function setupFuelLevelsAutoRefresh() {
 
     const fetchAndRender = async () => {
         try {
-            const response = await fetch('/api/fuel-levels', { cache: 'no-store', credentials: 'same-origin' });
+            const endpoint = isLocomotivas ? '/api/locomotivas-levels' : '/api/fuel-levels';
+            const response = await fetch(endpoint, { cache: 'no-store', credentials: 'same-origin' });
             if (!response.ok) return;
             const data = await response.json();
             if (data && Array.isArray(data.items)) {
                 const isAuthenticated = data.is_authenticated ?? authFromDom;
-                renderCards(data.items, data.brasilia_now, isAuthenticated);
-                renderPrintTable(data.items);
+                if (isLocomotivas) {
+                    renderCardsLocomotivas(data.items, isAuthenticated);
+                } else {
+                    renderCardsGeradores(data.items, isAuthenticated);
+                    renderPrintTable(data.items);
+                }
             }
         } catch (err) {
             console.warn('Falha ao atualizar níveis de combustível', err);

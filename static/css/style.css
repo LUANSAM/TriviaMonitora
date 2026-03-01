@@ -185,6 +185,7 @@ body[data-section="reservatorios"] {
 }
 
 .section-tab {
+    --tab-accent: var(--section-accent, #1ec592);
     position: relative;
     display: inline-flex;
     align-items: center;
@@ -193,8 +194,8 @@ body[data-section="reservatorios"] {
     min-width: 172px;
     height: 42px;
     padding: 0 14px;
-    border: 2px solid var(--section-accent, #1ec592);
-    border-bottom-color: rgba(0, 0, 0, 0.45);
+    border: 2px solid var(--tab-accent);
+    border-bottom-color: var(--tab-accent);
     border-top-left-radius: 14px;
     border-top-right-radius: 14px;
     background: var(--bg-dark);
@@ -220,10 +221,10 @@ body[data-section="reservatorios"] {
     transform: translateY(0);
     z-index: 6;
     margin-bottom: -2px;
-    color: var(--section-accent, #1ec592);
-    border-color: var(--section-accent, #1ec592);
+    color: var(--tab-accent);
+    border-color: var(--tab-accent);
     border-bottom-color: var(--bg-dark);
-    box-shadow: 0 0 0 1px var(--section-accent, #1ec592), 0 10px 22px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 0 0 1px var(--tab-accent), 0 10px 22px rgba(0, 0, 0, 0.4);
 }
 
 .section-tab.is-active::before,
@@ -241,16 +242,28 @@ body[data-section="reservatorios"] {
     background: none;
 }
 
+.section-tab--geradores {
+    --tab-accent: #1ec592;
+}
+
+.section-tab--locomotivas {
+    --tab-accent: #ff8a3c;
+}
+
+.section-tab--reservatorios {
+    --tab-accent: #f6c343;
+}
+
 .section-tab--geradores.is-active {
-    color: var(--section-accent, #1ec592);
+    color: var(--tab-accent);
 }
 
 .section-tab--locomotivas.is-active {
-    color: var(--section-accent, #1ec592);
+    color: var(--tab-accent);
 }
 
 .section-tab--reservatorios.is-active {
-    color: var(--section-accent, #1ec592);
+    color: var(--tab-accent);
 }
 
 .section-tab:focus-visible {
@@ -330,6 +343,8 @@ body.sidenav-open {
 .sidenav-content {
     flex: 1;
     padding: 12px 16px;
+    min-height: 0;
+    overflow-y: auto;
 }
 
 /* Sidebar visual customization to match provided design */
@@ -352,6 +367,7 @@ body.sidenav-open {
 
 .sidenav-auth-row {
     margin-top: auto;
+    margin-bottom: 8px;
     display: flex;
     justify-content: flex-end;
 }
