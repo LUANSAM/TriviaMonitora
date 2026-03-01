@@ -1,12 +1,13 @@
 {% extends 'base.html' %}
-{% block title %}Gestão de Locomotivas · Trivia Monitora{% endblock %}
+{% block title %}Gestão de Locomotivas · Monitor{% endblock %}
 
 {% block content %}
+{% set base_options = (bases if bases is defined and bases else locomotiva_bases) %}
+{% set combustivel_options = (combustiveis if combustiveis is defined and combustiveis else locomotiva_combustiveis) %}
 <section class="card">
     <header class="section-header locomotivas-admin-header">
         <div>
             <h2>Gestão de Locomotivas</h2>
-            <p>Cadastro, edição e exclusão de locomotivas com foto e dados principais.</p>
         </div>
         <button type="button" class="btn btn-primary" id="openCreateLocoModal">Nova locomotiva</button>
     </header>
@@ -18,13 +19,14 @@
                 id="locomotivasSearch"
                 name="q"
                 class="search-input"
-                placeholder="Pesquisar por modelo ou tag..."
+                placeholder="Pesquisar por modelo, tag ou base..."
                 value="{{ search_term or '' }}"
                 autocomplete="off"
             >
             <select name="sort_by" class="search-input locomotivas-select">
                 <option value="modelo" {% if sort_by == 'modelo' %}selected{% endif %}>Ordenar por modelo</option>
                 <option value="tag" {% if sort_by == 'tag' %}selected{% endif %}>Ordenar por tag</option>
+                <option value="base" {% if sort_by == 'base' %}selected{% endif %}>Ordenar por base</option>
                 <option value="combustivel" {% if sort_by == 'combustivel' %}selected{% endif %}>Ordenar por combustível</option>
                 <option value="nivel" {% if sort_by == 'nivel' %}selected{% endif %}>Ordenar por nível</option>
             </select>
@@ -43,8 +45,9 @@
                     <th>Foto</th>
                     <th>Modelo</th>
                     <th>Tag</th>
+                    <th>Base</th>
                     <th>Combustível</th>
-                    <th>Nível atual</th>
+                    <th>Nível</th>
                     <th>Ações</th>
                 </tr>
             </thead>
@@ -60,6 +63,7 @@
                     </td>
                     <td>{{ locomotiva.modelo or '-' }}</td>
                     <td>{{ locomotiva.tag or '-' }}</td>
+                    <td>{{ locomotiva.base or '-' }}</td>
                     <td>{{ locomotiva.combustivel or '-' }}</td>
                     <td>{{ locomotiva.nivel_display or '-' }}</td>
                     <td class="actions-cell">
@@ -70,9 +74,10 @@
                             data-id="{{ locomotiva.id }}"
                             data-modelo="{{ locomotiva.modelo or '' }}"
                             data-tag="{{ locomotiva.tag or '' }}"
+                            data-base="{{ locomotiva.base or '' }}"
                             data-combustivel="{{ locomotiva.combustivel or '' }}"
-                            data-volume="{{ locomotiva.volume_tanque if locomotiva.volume_tanque is not none else '' }}"
-                            data-nivel="{{ locomotiva.nivel_atual if locomotiva.nivel_atual is not none else '' }}"
+                            data-volume="{{ locomotiva.volume_tanque|int if locomotiva.volume_tanque is not none else '' }}"
+                            data-nivel="{{ locomotiva.nivel_atual|int if locomotiva.nivel_atual is not none else '' }}"
                         >
                             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                 <path d="M12 20h9"></path>
@@ -94,7 +99,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="6" class="empty-state">Nenhuma locomotiva cadastrada.</td>
+                    <td colspan="7" class="empty-state">Nenhuma locomotiva cadastrada.</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -119,40 +124,57 @@
     </div>
 </section>
 
-<div id="createLocoModal" class="modal">
+<div id="createLocoModal" class="modal locomotiva-modal">
     <div class="modal-content">
         <div class="modal-header">
             <h3>Nova locomotiva</h3>
             <button class="modal-close" type="button" data-dismiss="modal">&times;</button>
         </div>
-        <form class="modal-form" method="post" action="{{ url_for('criar_locomotiva') }}" enctype="multipart/form-data">
-            <label>
-                <span>Foto</span>
-                <input type="file" name="foto" accept="image/*" required>
-            </label>
-            <label>
-                <span>Tag</span>
-                <input type="text" name="tag" required>
-            </label>
-            <label>
-                <span>Modelo</span>
-                <input type="text" name="modelo" required>
-            </label>
-            <label>
-                <span>Combustível</span>
-                <select name="combustivel" required>
-                    <option value="">Selecione...</option>
-                    <option value="Diesel S10">Diesel S10</option>
-                    <option value="Diesel S500">Diesel S500</option>
-                </select>
-            </label>
-            <label>
-                <span>Volume do tanque (L)</span>
-                <input type="number" name="volume_tanque" min="1" step="0.1" required>
-            </label>
+        <form class="modal-form locomotiva-form" method="post" action="{{ url_for('criar_locomotiva') }}" enctype="multipart/form-data">
+            <div class="locomotiva-form-row locomotiva-form-row--photo-base">
+                <label>
+                    <span>Foto</span>
+                    <input class="loco-file-input" type="file" name="foto" id="createFotoInput" accept="image/*" required>
+                    <img id="createFotoPreview" class="loco-photo-preview" alt="Prévia da foto selecionada" hidden>
+                </label>
+                <label>
+                    <span>Base</span>
+                    <select name="base" required>
+                        <option value="">Selecione...</option>
+                        {% for base in base_options %}
+                        <option value="{{ base.label }}">{{ base.label }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+            </div>
+            <div class="locomotiva-form-row">
+                <label>
+                    <span>Tag</span>
+                    <input type="text" name="tag" required>
+                </label>
+                <label>
+                    <span>Modelo</span>
+                    <input type="text" name="modelo" required>
+                </label>
+            </div>
+            <div class="locomotiva-form-row">
+                <label>
+                    <span>Combustível</span>
+                    <select name="combustivel" required>
+                        <option value="">Selecione...</option>
+                        {% for combustivel in combustivel_options %}
+                        <option value="{{ combustivel.label }}">{{ combustivel.label }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label>
+                    <span>Volume do tanque (L)</span>
+                    <input class="inteiro-input" type="text" name="volume_tanque" id="createVolumeTanque" inputmode="numeric" pattern="[0-9]*" required>
+                </label>
+            </div>
             <label>
                 <span>Nível atual (%)</span>
-                <input type="number" name="nivel_atual" min="0" max="100" step="0.1" value="0">
+                <input class="inteiro-input" type="text" name="nivel_atual" min="0" max="100" inputmode="numeric" pattern="[0-9]*" value="0" required>
             </label>
             <div class="modal-actions">
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
@@ -162,40 +184,57 @@
     </div>
 </div>
 
-<div id="editLocoModal" class="modal">
+<div id="editLocoModal" class="modal locomotiva-modal">
     <div class="modal-content">
         <div class="modal-header">
             <h3>Editar locomotiva</h3>
             <button class="modal-close" type="button" data-dismiss="modal">&times;</button>
         </div>
-        <form id="editLocoForm" class="modal-form" method="post" enctype="multipart/form-data">
-            <label>
-                <span>Nova foto (opcional)</span>
-                <input type="file" name="foto" accept="image/*">
-            </label>
-            <label>
-                <span>Tag</span>
-                <input type="text" name="tag" id="editTag" required>
-            </label>
-            <label>
-                <span>Modelo</span>
-                <input type="text" name="modelo" id="editModelo" required>
-            </label>
-            <label>
-                <span>Combustível</span>
-                <select name="combustivel" id="editCombustivel" required>
-                    <option value="">Selecione...</option>
-                    <option value="Diesel S10">Diesel S10</option>
-                    <option value="Diesel S500">Diesel S500</option>
-                </select>
-            </label>
-            <label>
-                <span>Volume do tanque (L)</span>
-                <input type="number" name="volume_tanque" id="editVolumeTanque" min="1" step="0.1" required>
-            </label>
+        <form id="editLocoForm" class="modal-form locomotiva-form" method="post" enctype="multipart/form-data">
+            <div class="locomotiva-form-row locomotiva-form-row--photo-base">
+                <label>
+                    <span>Nova foto (opcional)</span>
+                    <input class="loco-file-input" type="file" name="foto" id="editFotoInput" accept="image/*">
+                    <img id="editFotoPreview" class="loco-photo-preview" alt="Prévia da nova foto" hidden>
+                </label>
+                <label>
+                    <span>Base</span>
+                    <select name="base" id="editBase" required>
+                        <option value="">Selecione...</option>
+                        {% for base in base_options %}
+                        <option value="{{ base.label }}">{{ base.label }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+            </div>
+            <div class="locomotiva-form-row">
+                <label>
+                    <span>Tag</span>
+                    <input type="text" name="tag" id="editTag" required>
+                </label>
+                <label>
+                    <span>Modelo</span>
+                    <input type="text" name="modelo" id="editModelo" required>
+                </label>
+            </div>
+            <div class="locomotiva-form-row">
+                <label>
+                    <span>Combustível</span>
+                    <select name="combustivel" id="editCombustivel" required>
+                        <option value="">Selecione...</option>
+                        {% for combustivel in combustivel_options %}
+                        <option value="{{ combustivel.label }}">{{ combustivel.label }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label>
+                    <span>Volume do tanque (L)</span>
+                    <input class="inteiro-input" type="text" name="volume_tanque" id="editVolumeTanque" inputmode="numeric" pattern="[0-9]*" required>
+                </label>
+            </div>
             <label>
                 <span>Nível atual (%)</span>
-                <input type="number" name="nivel_atual" id="editNivelAtual" min="0" max="100" step="0.1" required>
+                <input class="inteiro-input" type="text" name="nivel_atual" id="editNivelAtual" min="0" max="100" inputmode="numeric" pattern="[0-9]*" required>
             </label>
             <div class="modal-actions">
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
@@ -223,6 +262,107 @@
 
 .locomotivas-search-form {
     margin-top: 0;
+}
+
+.locomotiva-form {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.locomotiva-form-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.locomotiva-form-row--photo-base {
+    align-items: start;
+}
+
+.locomotiva-form label {
+    margin: 0;
+}
+
+.locomotiva-form label span {
+    margin-bottom: 2px;
+    display: inline-block;
+    font-size: clamp(0.78rem, 2.6vw, 0.92rem);
+}
+
+.locomotiva-form input,
+.locomotiva-form select {
+    font-size: clamp(0.9rem, 3.2vw, 1rem);
+}
+
+.locomotiva-modal .modal-header,
+.locomotiva-modal .modal-actions {
+    border: none;
+}
+
+.locomotiva-modal .modal-header {
+    padding: 14px 16px 4px;
+}
+
+.locomotiva-modal .modal-form {
+    padding: 8px 16px 12px;
+}
+
+.locomotiva-modal .modal-actions {
+    padding: 8px 16px 14px;
+    gap: 8px;
+}
+
+.loco-photo-preview {
+    margin-top: 6px;
+    width: 100%;
+    max-width: 220px;
+    height: auto;
+    max-height: 120px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.loco-file-input {
+    width: auto;
+    max-width: 100%;
+    font-size: 0;
+    color: transparent;
+    background: transparent;
+    border: 0;
+    padding: 0;
+}
+
+.loco-file-input::file-selector-button {
+    font-size: 0.95rem;
+    color: var(--text-light);
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+}
+
+.loco-file-input::-webkit-file-upload-button {
+    font-size: 0.95rem;
+    color: var(--text-light);
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+}
+
+.inteiro-input::-webkit-outer-spin-button,
+.inteiro-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.inteiro-input {
+    appearance: textfield;
+    -moz-appearance: textfield;
 }
 
 .locomotivas-search-grid {
@@ -254,6 +394,79 @@
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
+}
+
+.table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.locomotivas-table {
+    width: 100%;
+    min-width: 920px;
+    table-layout: fixed;
+}
+
+.locomotivas-table th,
+.locomotivas-table td {
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.locomotivas-table th:nth-child(1),
+.locomotivas-table td:nth-child(1) { width: 90px; }
+
+.locomotivas-table th:nth-child(2),
+.locomotivas-table td:nth-child(2) { width: 160px; }
+
+.locomotivas-table th:nth-child(3),
+.locomotivas-table td:nth-child(3) { width: 140px; }
+
+.locomotivas-table th:nth-child(4),
+.locomotivas-table td:nth-child(4) { width: 170px; }
+
+.locomotivas-table th:nth-child(5),
+.locomotivas-table td:nth-child(5) { width: 130px; }
+
+.locomotivas-table th:nth-child(6),
+.locomotivas-table td:nth-child(6) { width: 100px; }
+
+.locomotivas-table th:nth-child(7),
+.locomotivas-table td:nth-child(7) { width: 40px; }
+
+.locomotivas-table th:nth-child(7) {
+    text-align: right;
+}
+
+.locomotivas-table .actions-cell {
+    text-align: right;
+    vertical-align:baseline;
+}
+
+.locomotivas-table .actions-cell form {
+    margin: 0;
+    display: inline-flex;
+    vertical-align: middle;
+    align-items: center;
+}
+
+.locomotivas-table .actions-cell .btn-icon {
+    padding: 20px 0px 20px 0px;
+    margin: 0px;
+    vertical-align: middle;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.locomotivas-table .actions-cell > .btn-icon,
+.locomotivas-table .actions-cell > form {
+    margin-left: 10px;
+}
+
+.locomotivas-table .actions-cell > .btn-icon:first-child,
+.locomotivas-table .actions-cell > form:first-child {
+    margin-left: 0;
 }
 
 .locomotivas-table .locomotiva-photo-cell {
@@ -297,12 +510,29 @@
     .locomotivas-search-grid .btn {
         width: 100%;
     }
+
+    .locomotiva-form-row {
+        grid-template-columns: 1fr;
+    }
 }
 
-@media (max-width: 620px) {
-    .locomotivas-table th:nth-child(4),
-    .locomotivas-table td:nth-child(4) {
-        display: none;
+@media (max-width: 400px) {
+    .locomotiva-modal .modal-content {
+        width: 96%;
+    }
+
+    .locomotiva-modal .modal-header h3 {
+        font-size: 1rem;
+    }
+
+    .locomotiva-form label span {
+        font-size: 0.75rem;
+    }
+
+    .locomotiva-form input,
+    .locomotiva-form select,
+    .locomotiva-modal .modal-actions .btn {
+        font-size: 0.88rem;
     }
 }
 </style>
@@ -313,6 +543,10 @@
     const editForm = document.getElementById('editLocoForm');
     const openCreateButton = document.getElementById('openCreateLocoModal');
     const searchInput = document.getElementById('locomotivasSearch');
+    const createFotoInput = document.getElementById('createFotoInput');
+    const editFotoInput = document.getElementById('editFotoInput');
+    const createFotoPreview = document.getElementById('createFotoPreview');
+    const editFotoPreview = document.getElementById('editFotoPreview');
 
     function openModal(modalElement) {
         if (modalElement) modalElement.style.display = 'flex';
@@ -322,11 +556,63 @@
         if (modalElement) modalElement.style.display = 'none';
     }
 
+    function bindImagePreview(inputEl, imgEl) {
+        if (!inputEl || !imgEl) return;
+        inputEl.addEventListener('change', function () {
+            const file = inputEl.files && inputEl.files[0];
+            if (!file) {
+                imgEl.src = '';
+                imgEl.hidden = true;
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                imgEl.src = event.target && event.target.result ? event.target.result : '';
+                imgEl.hidden = !imgEl.src;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function bindIntegerValidation(inputEl, minValue, maxValue) {
+        if (!inputEl) return;
+        inputEl.addEventListener('input', function () {
+            inputEl.value = (inputEl.value || '').replace(/[^\d]/g, '');
+        });
+        inputEl.addEventListener('blur', function () {
+            const raw = (inputEl.value || '').trim();
+            if (!raw) {
+                if (typeof minValue === 'number') {
+                    inputEl.value = String(minValue);
+                }
+                return;
+            }
+            let value = parseInt(raw, 10);
+            if (Number.isNaN(value)) {
+                value = typeof minValue === 'number' ? minValue : 0;
+            }
+            if (typeof minValue === 'number') {
+                value = Math.max(minValue, value);
+            }
+            if (typeof maxValue === 'number') {
+                value = Math.min(maxValue, value);
+            }
+            inputEl.value = String(value);
+        });
+    }
+
     if (openCreateButton) {
         openCreateButton.addEventListener('click', function () {
             openModal(createModal);
         });
     }
+
+    bindImagePreview(createFotoInput, createFotoPreview);
+    bindImagePreview(editFotoInput, editFotoPreview);
+    bindIntegerValidation(document.getElementById('createVolumeTanque'), 1);
+    bindIntegerValidation(document.getElementById('editVolumeTanque'), 1);
+    bindIntegerValidation(document.querySelector('input[name="nivel_atual"]'), 0, 100);
+    bindIntegerValidation(document.getElementById('editNivelAtual'), 0, 100);
 
     document.querySelectorAll('[data-dismiss="modal"]').forEach(function (element) {
         element.addEventListener('click', function () {
@@ -348,6 +634,7 @@
             editForm.action = `/admin/locomotivas/${locomotiveId}/edit`;
             document.getElementById('editTag').value = button.getAttribute('data-tag') || '';
             document.getElementById('editModelo').value = button.getAttribute('data-modelo') || '';
+            document.getElementById('editBase').value = button.getAttribute('data-base') || '';
             document.getElementById('editCombustivel').value = button.getAttribute('data-combustivel') || '';
             document.getElementById('editVolumeTanque').value = button.getAttribute('data-volume') || '';
             document.getElementById('editNivelAtual').value = button.getAttribute('data-nivel') || '0';

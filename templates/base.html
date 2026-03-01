@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Trivia Monitora{% endblock %}</title>
+    <title>{% block title %}Monitor{% endblock %}</title>
     
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
@@ -25,7 +25,7 @@
             </button>
             <a class="header-link" href="{{ url_for('home') }}">
                 <div class="header-brand">
-                    <h1>Trivia Monitora</h1>
+                    <h1>Monitor</h1>
                 </div>
                 <div class="header-logo">
                     <img src="{{ url_for('serve_public_asset', filename='logo.png') }}" alt="Logo Trivia" loading="lazy">
@@ -117,7 +117,7 @@
                             <circle cx="16" cy="18" r="2"></circle>
                             <path d="M8 11V7a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v4"></path>
                         </svg>
-                        <span class="nav-text">Gestão Locomotivas</span>
+                        <span class="nav-text">Locomotivas</span>
                     </a>
                     <a class="nav-link" href="{{ url_for('dashboard_numeros') }}">
                         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -166,7 +166,6 @@
             <nav class="section-tabs section-tabs--{{ active_section or 'geradores' }}" aria-label="Seções do monitoramento">
                 <a class="section-tab section-tab--geradores{% if active_section == 'geradores' %} is-active{% endif %}" href="{{ url_for('home') }}">Geradores</a>
                 <a class="section-tab section-tab--locomotivas{% if active_section == 'locomotivas' %} is-active{% endif %}" href="{{ url_for('locomotivas') }}">Locomotivas</a>
-                <a class="section-tab section-tab--reservatorios{% if active_section == 'reservatorios' %} is-active{% endif %}" href="{{ url_for('reservatorios') }}">Reservatórios</a>
             </nav>
             <main class="app-main app-main--sectioned">
         {% else %}
